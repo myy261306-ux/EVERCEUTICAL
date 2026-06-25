@@ -220,7 +220,7 @@ export default function ContactPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-transparent overflow-hidden">
+      <main className="min-h-screen bg-transparent overflow-x-hidden">
 
         {/* HERO */}
         <section className="relative min-h-[100vh] flex items-center justify-center bg-transparent overflow-hidden">
@@ -444,7 +444,7 @@ export default function ContactPage() {
                 transition: "opacity 1.3s cubic-bezier(0.22,1,0.36,1) 0.2s, transform 1.3s cubic-bezier(0.22,1,0.36,1) 0.2s",
               }}>
                 <div className="glass-card rounded-2xl p-7 md:p-9">
-                  <h3 className="text-xl font-bold text-[#0f172a] mb-6">Headquarters</h3>
+                  <h3 className="text-lg md:text-xl font-bold text-[#0f172a] mb-6">Headquarters</h3>
                   <div className="space-y-5">
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-lg bg-[#0ea5e9]/10 flex items-center justify-center shrink-0">
@@ -507,7 +507,7 @@ export default function ContactPage() {
                     src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3165.4!2d127.1!3d37.4!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzfCsDI0JzAwLjAiTiAxMjfCsDA2JzAwLjAiRQ!5e0!3m2!1sen!2skr!4v1"
                     width="100%"
                     height="100%"
-                    style={{ border: 0, filter: "grayscale(40%) contrast(1.1) brightness(0.7) invert(1)" }}
+                    style={{ border: 0 }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
@@ -643,7 +643,7 @@ export default function ContactPage() {
         <section className="relative bg-transparent py-16 md:py-24">
           <div className="max-w-4xl mx-auto px-5 sm:px-6 text-center">
             <div ref={ctaSection.ref} style={{ opacity: ctaSection.visible ? 1 : 0, transform: `translateY(${ctaSection.visible ? 0 : 60}px) scale(${ctaSection.visible ? 1 : 0.9})`, transition: "opacity 1.5s cubic-bezier(0.22,1,0.36,1), transform 1.5s cubic-bezier(0.22,1,0.36,1)" }}>
-              <div className="relative rounded-3xl p-8 md:p-12 lg:p-16 overflow-hidden"
+              <div className="relative rounded-3xl p-5 md:p-8 lg:p-12 xl:p-16 overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
                 }}>

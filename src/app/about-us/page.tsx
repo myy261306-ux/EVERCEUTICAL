@@ -191,7 +191,7 @@ export default function AboutUsPage() {
                 transform: about.visible ? "translateX(0) perspective(1000px) rotateY(0deg)" : "translateX(-80px) perspective(1000px) rotateY(8deg)",
                 transition: "opacity 1.4s cubic-bezier(0.22,1,0.36,1), transform 1.4s cubic-bezier(0.22,1,0.36,1)",
               }}>
-                <div className="relative glass-card rounded-2xl border border-[#e2e8f0] p-8 md:p-10 overflow-hidden bg-white">
+                <div className="relative glass-card rounded-2xl border border-[#e2e8f0] p-5 md:p-8 lg:p-10 overflow-hidden bg-white">
                   <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[#5b7c91]/40 to-transparent" />
                   <span className="inline-block text-[10px] text-[#38bdf8] font-bold tracking-[0.25em] uppercase bg-[#0ea5e9]/[0.1] px-4 py-1.5 rounded-full mb-5"
                     style={{ opacity: about.visible ? 1 : 0, transform: `translateY(${about.visible ? 0 : 20}px)`, transition: "opacity 1s ease 0.4s, transform 1s ease 0.4s" }}>
@@ -406,7 +406,7 @@ export default function AboutUsPage() {
               transform: `translateY(${quality.visible ? 0 : 40}px) scale(${quality.visible ? 1 : 0.95})`,
               transition: "opacity 1.3s cubic-bezier(0.22,1,0.36,1) 0.3s, transform 1.3s cubic-bezier(0.22,1,0.36,1) 0.3s",
             }}>
-              <div className="relative glass-card rounded-2xl border border-[#e2e8f0] p-8 md:p-12 overflow-hidden bg-white">
+              <div className="relative glass-card rounded-2xl border border-[#e2e8f0] p-5 md:p-8 lg:p-12 overflow-hidden bg-white">
                 <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[#5b7c91]/40 to-transparent" />
                 <div className="flex flex-wrap justify-center gap-4">
                   {aboutUs.quality.protocols.map((protocol, i) => (
@@ -432,7 +432,7 @@ export default function AboutUsPage() {
 
           <div className="w-full max-w-4xl mx-auto px-5 sm:px-6 z-10 relative">
             <div ref={cta.ref} style={{ opacity: cta.visible ? 1 : 0, transform: `translateY(${cta.visible ? 0 : 60}px) scale(${cta.visible ? 1 : 0.9})`, transition: "opacity 1.5s cubic-bezier(0.22,1,0.36,1), transform 1.5s cubic-bezier(0.22,1,0.36,1)" }}>
-              <div className="relative rounded-3xl p-8 md:p-12 lg:p-16 text-center overflow-hidden"
+              <div className="relative rounded-3xl p-5 md:p-8 lg:p-12 xl:p-16 text-center overflow-hidden"
                 style={{ background: "linear-gradient(135deg, #0f172a 0%, #0ea5e9 100%)" }}>
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
                   <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-white/[0.04] blur-2xl" />
@@ -501,7 +501,7 @@ function MissionCard({ title, text, visible, index, color }: { title: string; te
         border: `1px solid ${hovered ? color + "20" : "rgba(229,231,235,1)"}`,
         boxShadow: "none",
       }}>
-      <div className="relative p-8 md:p-10">
+      <div className="relative p-5 md:p-8 lg:p-10">
         <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-all duration-500"
           style={{ backgroundColor: color + "10", transform: hovered ? "scale(1.15) rotate(-8deg)" : "scale(1) rotate(0deg)" }}>
           <svg className="w-6 h-6" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -512,7 +512,7 @@ function MissionCard({ title, text, visible, index, color }: { title: string; te
             )}
           </svg>
         </div>
-        <h3 className="text-xl font-bold text-[#0f172a] mb-3">{title}</h3>
+        <h3 className="text-lg md:text-xl font-bold text-[#0f172a] mb-3">{title}</h3>
         <p className="text-[#334155] text-sm leading-relaxed">{text}</p>
         <div className="absolute bottom-0 left-8 right-8 h-[2px] transition-all duration-500"
           style={{ background: hovered ? `linear-gradient(to right, transparent, ${color}40, transparent)` : "linear-gradient(to right, transparent, transparent, transparent)" }} />
@@ -525,7 +525,7 @@ function StatsCard({ highlights }: { highlights: { value: string; label: string 
   const tiltRef = useMouseTilt()
 
   return (
-    <div ref={tiltRef} className="relative glass-card rounded-2xl border border-[#e2e8f0] p-8 md:p-10 overflow-hidden bg-white">
+    <div ref={tiltRef} className="relative glass-card rounded-2xl border border-[#e2e8f0] p-5 md:p-8 lg:p-10 overflow-hidden bg-white">
       <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[#5b7c91]/40 to-transparent" />
       <div className="grid grid-cols-2 gap-6">
         {highlights.map((h, i) => (

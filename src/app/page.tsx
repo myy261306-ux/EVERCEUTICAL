@@ -8,6 +8,7 @@ import BenefitsSection from "@/components/BenefitsSection"
 import FAQSection from "@/components/FAQSection"
 import BehindTheScienceSection from "@/components/BehindTheScienceSection"
 import Footer from "@/components/Footer"
+
 export default function Home() {
   return (
     <>

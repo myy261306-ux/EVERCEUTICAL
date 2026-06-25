@@ -15,10 +15,10 @@ function useInView(threshold = 0.15, rootMargin?: string) {
       ([entry]) => {
         if (entry.isIntersecting) setVisible(true)
       },
-      { threshold: isMobile ? 0.01 : threshold, rootMargin: rootMargin ?? (isMobile ? "200px 0px 0px 0px" : "0px 0px -30px 0px") }
+      { threshold: isMobile ? 0.01 : threshold, rootMargin: isMobile ? "400px 0px 0px 0px" : "0px 0px -20px 0px" }
     )
     obs.observe(el)
-    const timer = isMobile ? setTimeout(() => setVisible(true), 1500) : setTimeout(() => setVisible(true), 4000)
+    const timer = isMobile ? setTimeout(() => setVisible(true), 500) : setTimeout(() => setVisible(true), 2000)
     return () => { obs.disconnect(); clearTimeout(timer) }
   }, [threshold, rootMargin])
 
@@ -137,7 +137,7 @@ export default function FAQSection() {
           style={{
             opacity: header.visible ? 1 : 0,
             transform: `translateY(${header.visible ? 0 : 35}px)`,
-            transition: "opacity 0.8s ease, transform 0.8s cubic-bezier(0.22,1,0.36,1)",
+            transition: "opacity 0.5s ease, transform 0.5s cubic-bezier(0.22,1,0.36,1)",
           }}
         >
           <span className="text-[10px] text-[#38bdf8] font-bold tracking-[0.25em] uppercase bg-[#0ea5e9]/[0.1] px-4 py-1.5 rounded-full inline-block">
@@ -164,13 +164,13 @@ export default function FAQSection() {
             style={{
               opacity: image.visible ? 1 : 0,
               transform: `translateX(${image.visible ? 0 : -40}px)`,
-              transition: "opacity 0.8s ease 0.2s, transform 0.8s cubic-bezier(0.22,1,0.36,1) 0.2s",
+              transition: "opacity 0.5s ease 0.1s, transform 0.5s cubic-bezier(0.22,1,0.36,1) 0.1s",
             }}
           >
             <div className="relative rounded-3xl overflow-hidden aspect-[4/3] md:aspect-[4/5] max-h-[300px] md:max-h-[500px] lg:max-h-[600px]">
               {/* Actual image */}
               <img
-                src="images/faq-doctor.jpg"
+                src="/images/faq-doctor.jpg"
                 alt="Medical Professional"
                 className="absolute inset-0 w-full h-full object-cover object-top"
                 loading="lazy"

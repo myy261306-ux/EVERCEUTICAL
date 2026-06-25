@@ -39,7 +39,7 @@ export default function Navbar() {
             <div className="flex items-center gap-2 sm:gap-2.5">
               <div className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 flex items-center justify-center">
                 <img
-                  src="images/logo.png?v=2"
+                  src="/images/logo.png?v=3"
                   alt="EverCeutical Logo"
                   className="w-full h-full object-contain"
                   draggable={false}

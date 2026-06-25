@@ -124,7 +124,7 @@ export default function Footer() {
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-10 h-10 flex items-center justify-center">
                 <img
-                  src="images/logo.png?v=2"
+                  src="/images/logo.png?v=3"
                   alt="EverCeutical Logo"
                   className="w-full h-full object-contain"
                   draggable={false}

@@ -47,12 +47,14 @@ export default function ExosomeClassesSection() {
   useEffect(() => {
     const el = document.getElementById("classes")
     if (!el) return
+    const isMobile = window.innerWidth < 768
     const obs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setShow(true) },
-      { threshold: 0.15 }
+      { threshold: 0.05, rootMargin: isMobile ? "400px 0px 0px 0px" : "0px 0px -20px 0px" }
     )
     obs.observe(el)
-    return () => obs.disconnect()
+    const timer = setTimeout(() => setShow(true), isMobile ? 500 : 2000)
+    return () => { obs.disconnect(); clearTimeout(timer) }
   }, [])
 
   const ringSize = bp === "mobile" ? RING_MOBILE : bp === "tablet" ? RING_TABLET : RING_DESKTOP
@@ -452,7 +454,7 @@ export default function ExosomeClassesSection() {
       {/* Bottom text */}
       <div className="mt-6 md:mt-7 max-w-2xl mx-auto text-center z-10 px-5 sm:px-6"
         style={{ opacity: show ? 1 : 0, transform: `translateY(${show ? 0 : 15}px)`,
-          transition: "opacity 0.8s ease 1s, transform 0.8s ease 1s" }}>
+          transition: "opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s" }}>
         <h3 className="text-lg md:text-xl font-bold text-[#0f172a] mb-2">
           Next-Generation Regenerative Technology
         </h3>

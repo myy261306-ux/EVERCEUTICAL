@@ -1,425 +1,440 @@
 "use client"
 
-import { useRef, useMemo, useEffect } from "react"
-import { useFrame, useThree } from "@react-three/fiber"
+import { useMemo, useRef, useEffect } from "react"
 import * as THREE from "three"
 import { SimplexNoise } from "./SimplexNoise"
-import {
-  getNucleusBumpTexture,
-  getNucleusNormalMap,
-  getMembraneBumpTexture,
-  getGlowTexture,
-} from "./exosomeTextures"
 
-function createCoreGeo(segments: number, noise: SimplexNoise): THREE.BufferGeometry {
-  const geo = new THREE.SphereGeometry(1.0, segments, segments)
-  const pos = geo.attributes.position
-  const normal = geo.attributes.normal
-  for (let i = 0; i < pos.count; i++) {
-    const nx = normal.getX(i)
-    const ny = normal.getY(i)
-    const nz = normal.getZ(i)
-    const l1 = noise.fbm(nx * 1.5, ny * 1.5 + 100, nz * 1.5 + 200, 4, 2.0, 0.5)
-    const l2 = noise.fbm(nx * 4.0 + 50, ny * 4.0 + 150, nz * 4.0 + 250, 3, 2.2, 0.45)
-    const l3 = noise.fbm(nx * 8.0 + 100, ny * 8.0 + 200, nz * 8.0 + 300, 2, 2.0, 0.5)
-    const l4 = noise.fbm(nx * 16.0 + 150, ny * 16.0 + 250, nz * 16.0 + 350, 2, 2.0, 0.5)
-    const disp = 1 + l1 * 0.04 + l2 * 0.025 + l3 * 0.015 + l4 * 0.008
-    pos.setXYZ(i, nx * disp, ny * disp, nz * disp)
+const CURVE_SEGS = 220
+const MEMBRANE_WIDTH = 2.4
+const MEMBRANE_THICKNESS = 0.28
+const COLS = 160
+const ROWS = 16
+const HEAD_RADIUS = 0.028
+const TAIL_RADIUS = 0.014
+const TAIL_GAP = 0.18
+
+const COLORS = {
+  headTop: new THREE.Color("#d4a84c"),
+  headTopSpec: new THREE.Color("#f0d888"),
+  headBottom: new THREE.Color("#b89030"),
+  headBottomSpec: new THREE.Color("#d0b050"),
+  tails: new THREE.Color("#5a6a40"),
+  tailsDark: new THREE.Color("#4a5a32"),
+  coreRibbon: new THREE.Color("#4a5a38"),
+  proteinCap: new THREE.Color("#d47090"),
+  proteinCapSpec: new THREE.Color("#f0b0c8"),
+  proteinStem: new THREE.Color("#4a7a58"),
+  channelBody: new THREE.Color("#7a8a48"),
+  lipHeadTop: new THREE.Color("#c8a040"),
+  lipHeadBot: new THREE.Color("#a08028"),
+  lipTail: new THREE.Color("#5a6840"),
+}
+
+function buildCurve(): THREE.CatmullRomCurve3 {
+  return new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-10.0, 2.4, -2.2),
+    new THREE.Vector3(-8.0, 1.5, -1.5),
+    new THREE.Vector3(-6.0, 0.7, -0.8),
+    new THREE.Vector3(-4.0, 0.2, -0.1),
+    new THREE.Vector3(-2.0, 0.0, 0.3),
+    new THREE.Vector3(0.0, -0.05, 0.25),
+    new THREE.Vector3(2.0, 0.08, -0.05),
+    new THREE.Vector3(4.0, 0.35, -0.5),
+    new THREE.Vector3(6.0, 0.85, -1.0),
+    new THREE.Vector3(8.0, 1.6, -1.6),
+    new THREE.Vector3(10.0, 2.6, -2.3),
+  ], false, "catmullrom", 0.5)
+}
+
+function getCurveFrame(curve: THREE.CatmullRomCurve3, t: number) {
+  const pt = curve.getPointAt(t)
+  const tan = curve.getTangentAt(t).normalize()
+  const up = new THREE.Vector3(0, 1, 0)
+  const binormal = new THREE.Vector3().crossVectors(tan, up).normalize()
+  if (binormal.length() < 0.001) binormal.set(1, 0, 0)
+  const normal = new THREE.Vector3().crossVectors(binormal, tan).normalize()
+  return { point: pt, tangent: tan, binormal, normal }
+}
+
+function buildCylinderVerts(
+  cx: number, cy: number, cz: number,
+  radius: number, height: number,
+  radialSegs: number, heightSegs: number
+): { positions: number[]; normals: number[]; indices: number[] } {
+  const positions: number[] = []
+  const normals: number[] = []
+  const indices: number[] = []
+  const halfH = height / 2
+
+  for (let j = 0; j <= radialSegs; j++) {
+    const angle = (j / radialSegs) * Math.PI * 2
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const nx = cos
+    const nz = sin
+
+    for (let i = 0; i <= heightSegs; i++) {
+      const y = -halfH + (i / heightSegs) * height
+      positions.push(cx + nx * radius, cy + y, cz + nz * radius)
+      normals.push(nx, 0, nz)
+    }
   }
+
+  for (let j = 0; j < radialSegs; j++) {
+    for (let i = 0; i < heightSegs; i++) {
+      const a = j * (heightSegs + 1) + i
+      const b = a + heightSegs + 1
+      indices.push(a, b, a + 1)
+      indices.push(a + 1, b, b + 1)
+    }
+  }
+
+  return { positions, normals, indices }
+}
+
+function buildSphereVerts(
+  cx: number, cy: number, cz: number,
+  radius: number, widthSegs: number, heightSegs: number
+): { positions: number[]; normals: number[]; indices: number[] } {
+  const positions: number[] = []
+  const normals: number[] = []
+  const indices: number[] = []
+
+  for (let y = 0; y <= heightSegs; y++) {
+    const v = y / heightSegs
+    const phi = v * Math.PI
+    const sp = Math.sin(phi)
+    const cp = Math.cos(phi)
+
+    for (let x = 0; x <= widthSegs; x++) {
+      const u = x / widthSegs
+      const theta = u * Math.PI * 2
+      const nx = sp * Math.cos(theta)
+      const ny = cp
+      const nz = sp * Math.sin(theta)
+
+      positions.push(cx + nx * radius, cy + ny * radius, cz + nz * radius)
+      normals.push(nx, ny, nz)
+    }
+  }
+
+  for (let y = 0; y < heightSegs; y++) {
+    for (let x = 0; x < widthSegs; x++) {
+      const a = y * (widthSegs + 1) + x
+      const b = a + widthSegs + 1
+      indices.push(a, b, a + 1)
+      indices.push(a + 1, b, b + 1)
+    }
+  }
+
+  return { positions, normals, indices }
+}
+
+function mergeBufferGeos(geos: { positions: number[]; normals: number[]; indices: number[] }[]): THREE.BufferGeometry {
+  let vertexOffset = 0
+  const allPos: number[] = []
+  const allNorm: number[] = []
+  const allIdx: number[] = []
+
+  for (const g of geos) {
+    allPos.push(...g.positions)
+    allNorm.push(...g.normals)
+    for (const idx of g.indices) {
+      allIdx.push(idx + vertexOffset)
+    }
+    vertexOffset += g.positions.length / 3
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(allPos, 3))
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(allNorm, 3))
+  geo.setIndex(allIdx)
   geo.computeVertexNormals()
   return geo
 }
 
-function createMembraneGeo(segments: number, noise: SimplexNoise): THREE.BufferGeometry {
-  const geo = new THREE.SphereGeometry(1.0, segments, segments)
-  const pos = geo.attributes.position
-  const normal = geo.attributes.normal
-  for (let i = 0; i < pos.count; i++) {
-    const nx = normal.getX(i)
-    const ny = normal.getY(i)
-    const nz = normal.getZ(i)
-    const l1 = noise.fbm(nx * 2.0 + 300, ny * 2.0 + 400, nz * 2.0 + 500, 3, 2.0, 0.5)
-    const l2 = noise.fbm(nx * 5.0 + 350, ny * 5.0 + 450, nz * 5.0 + 550, 2, 2.0, 0.5)
-    const l3 = noise.fbm(nx * 10.0 + 400, ny * 10.0 + 500, nz * 10.0 + 600, 2, 2.0, 0.5)
-    const disp = 1 + l1 * 0.06 + l2 * 0.035 + l3 * 0.015
-    pos.setXYZ(i, nx * disp, ny * disp, nz * disp)
+function buildThickRibbon(
+  curve: THREE.CatmullRomCurve3,
+  segments: number,
+  width: number,
+  thickness: number,
+  noise: SimplexNoise
+): THREE.BufferGeometry {
+  const halfW = width / 2
+  const halfH = thickness / 2
+  const vertsPerStep = 8
+  const positions: number[] = []
+  const normals: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments
+    const { point, binormal, normal } = getCurveFrame(curve, t)
+    const n = noise.fbm(point.x * 0.12, point.y * 0.12, 0, 2) * 0.01
+
+    const bx = binormal.x
+    const bz = binormal.z
+    const nx = normal.x
+    const nz = normal.z
+
+    const cx = point.x
+    const cy = point.y + n
+    const cz = point.z
+
+    const v = [
+      [cx + bx * halfW + nx * halfH, cy + halfH * 0.3, cz + bz * halfW + nz * halfH],
+      [cx - bx * halfW + nx * halfH, cy + halfH * 0.3, cz - bz * halfW + nz * halfH],
+      [cx - bx * halfW - nx * halfH, cy - halfH * 0.3, cz - bz * halfW - nz * halfH],
+      [cx + bx * halfW - nx * halfH, cy - halfH * 0.3, cz + bz * halfW - nz * halfH],
+      [cx + bx * halfW + nx * halfH, cy + halfH, cz + bz * halfW + nz * halfH],
+      [cx - bx * halfW + nx * halfH, cy + halfH, cz - bz * halfW + nz * halfH],
+      [cx - bx * halfW - nx * halfH, cy - halfH, cz - bz * halfW - nz * halfH],
+      [cx + bx * halfW - nx * halfH, cy - halfH, cz + bz * halfW - nz * halfH],
+    ]
+
+    const faceNormals = [
+      [nx, 0.3, nz],
+      [-nx, 0.3, -nz],
+      [-nx, -0.3, -nz],
+      [nx, -0.3, nz],
+      [0, 1, 0],
+      [0, -1, 0],
+      [bx, 0, bz],
+      [-bx, 0, -bz],
+    ]
+
+    for (let j = 0; j < vertsPerStep; j++) {
+      positions.push(v[j][0], v[j][1], v[j][2])
+      normals.push(faceNormals[j][0], faceNormals[j][1], faceNormals[j][2])
+      uvs.push(t, j < 4 ? 0.5 : (j < 6 ? 1 : 0))
+    }
+
+    if (i < segments) {
+      const o = i * vertsPerStep
+      const no = (i + 1) * vertsPerStep
+      for (let j = 0; j < 4; j++) {
+        const j2 = (j + 1) % 4
+        indices.push(o + j, no + j, o + j2)
+        indices.push(o + j2, no + j, no + j2)
+      }
+      for (let j = 4; j < 8; j++) {
+        const j2 = j < 7 ? j + 1 : 4
+        indices.push(o + j, o + j2, no + j)
+        indices.push(no + j, o + j2, no + j2)
+      }
+    }
   }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3))
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
   geo.computeVertexNormals()
   return geo
 }
 
-interface ExoInstance {
-  baseX: number
-  baseY: number
-  baseZ: number
+interface ProteinData {
+  position: THREE.Vector3
+  tangent: THREE.Vector3
+  binormal: THREE.Vector3
+  isChannel: boolean
   scale: number
-  rotSpeedX: number
-  rotSpeedY: number
-  rotSpeedZ: number
-  floatSpeedX: number
-  floatSpeedY: number
-  floatSpeedZ: number
-  floatAmpX: number
-  floatAmpY: number
-  floatAmpZ: number
-  phaseX: number
-  phaseY: number
-  phaseZ: number
-  memScale: number
 }
 
-const CAM_Z = 14
-const TAN_HALF_FOV = Math.tan((55 * Math.PI) / 360)
-const ASPECT = 16 / 9
+function buildProteinGeometry(isChannel: boolean): THREE.BufferGeometry {
+  const parts: { positions: number[]; normals: number[]; indices: number[] }[] = []
 
-function halfExtents(z: number, overshoot: number) {
-  const d = CAM_Z - z
-  const hw = d * TAN_HALF_FOV * overshoot
-  return { hw, hh: hw / ASPECT }
+  const stem = buildCylinderVerts(0, 0.12, 0, 0.018, 0.22, 6, 1)
+  parts.push(stem)
+
+  const capGeo = buildSphereVerts(0, 0.3, 0, 0.09, 10, 8)
+  parts.push(capGeo)
+
+  const bumpGeo1 = buildSphereVerts(0.04, 0.36, 0.02, 0.04, 6, 5)
+  parts.push(bumpGeo1)
+  const bumpGeo2 = buildSphereVerts(-0.03, 0.34, -0.03, 0.035, 6, 5)
+  parts.push(bumpGeo2)
+  const bumpGeo3 = buildSphereVerts(0.01, 0.38, -0.02, 0.03, 6, 5)
+  parts.push(bumpGeo3)
+
+  if (isChannel) {
+    const channel = buildCylinderVerts(0, 0.0, 0, 0.03, 0.14, 8, 1)
+    parts.push(channel)
+  }
+
+  return mergeBufferGeos(parts)
 }
 
-function scatter(
-  zMin: number, zMax: number,
-  cols: number, rows: number,
-  overshoot: number,
-  jitterX: number, jitterY: number,
-  rand: () => number,
-): [number, number, number][] {
-  const zMid = (zMin + zMax) / 2
-  const { hw, hh } = halfExtents(zMid, overshoot)
-  const pts: [number, number, number][] = []
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const gx = -hw + (c + 0.5) * (2 * hw) / cols
-      const gy = -hh + (r + 0.5) * (2 * hh) / rows
-      pts.push([
-        gx + (rand() - 0.5) * jitterX,
-        gy + (rand() - 0.5) * jitterY,
-        zMin + rand() * (zMax - zMin),
-      ])
-    }
-  }
-  return pts
-}
-
-function generateInstances(isMobile: boolean): ExoInstance[] {
-  const instances: ExoInstance[] = []
-  let seed = 42
-  const rand = () => {
-    seed = (seed * 16807) % 2147483647
-    return (seed - 1) / 2147483646
-  }
-
-  // LAYER 1: NEAR — large, covers ALL edges + corners
-  {
-    const c = isMobile ? 3 : 8
-    const r = isMobile ? 2 : 4
-    const pts = scatter(-0.5, -5, c, r, 1.8, 1.5, 1.0, rand)
-    for (const [x, y, z] of pts) {
-      instances.push({
-        baseX: x, baseY: y, baseZ: z,
-        scale: isMobile ? 0.75 + rand() * 0.15 : 1.0 + rand() * 0.35,
-        rotSpeedX: (0.05 + rand() * 0.06) * 0.7,
-        rotSpeedY: (0.04 + rand() * 0.05) * 0.7,
-        rotSpeedZ: (0.025 + rand() * 0.04) * 0.7,
-        floatSpeedX: 0.4 + rand() * 0.25,
-        floatSpeedY: 0.35 + rand() * 0.2,
-        floatSpeedZ: 0.2 + rand() * 0.14,
-        floatAmpX: 0.4 + rand() * 0.3,
-        floatAmpY: 0.35 + rand() * 0.25,
-        floatAmpZ: 0.12 + rand() * 0.09,
-        phaseX: rand() * Math.PI * 2,
-        phaseY: rand() * Math.PI * 2,
-        phaseZ: rand() * Math.PI * 2,
-        memScale: 1.35 + rand() * 0.1,
-      })
-    }
-  }
-
-  // LAYER 2: HERO — dominant foreground
-  {
-    const c = isMobile ? 3 : 8
-    const r = isMobile ? 3 : 5
-    const pts = scatter(-3, -9, c, r, 1.7, 1.2, 0.8, rand)
-    for (const [x, y, z] of pts) {
-      instances.push({
-        baseX: x, baseY: y, baseZ: z,
-        scale: isMobile ? 0.5 + rand() * 0.12 : 0.75 + rand() * 0.25,
-        rotSpeedX: 0.06 + rand() * 0.08,
-        rotSpeedY: 0.05 + rand() * 0.06,
-        rotSpeedZ: 0.035 + rand() * 0.05,
-        floatSpeedX: 0.5 + rand() * 0.3,
-        floatSpeedY: 0.4 + rand() * 0.25,
-        floatSpeedZ: 0.25 + rand() * 0.18,
-        floatAmpX: 0.4 + rand() * 0.3,
-        floatAmpY: 0.25 + rand() * 0.15,
-        floatAmpZ: 0.12 + rand() * 0.09,
-        phaseX: rand() * Math.PI * 2,
-        phaseY: rand() * Math.PI * 2,
-        phaseZ: rand() * Math.PI * 2,
-        memScale: 1.35 + rand() * 0.1,
-      })
-    }
-  }
-
-  // LAYER 3: MID — medium, dense fill
-  {
-    const c = isMobile ? 3 : 10
-    const r = isMobile ? 3 : 6
-    const pts = scatter(-8, -18, c, r, 1.5, 1.0, 0.7, rand)
-    for (const [x, y, z] of pts) {
-      instances.push({
-        baseX: x, baseY: y, baseZ: z,
-        scale: isMobile ? 0.22 + rand() * 0.06 : 0.32 + rand() * 0.1,
-        rotSpeedX: 0.08 + rand() * 0.06,
-        rotSpeedY: 0.06 + rand() * 0.05,
-        rotSpeedZ: 0.04 + rand() * 0.035,
-        floatSpeedX: 0.4 + rand() * 0.25,
-        floatSpeedY: 0.35 + rand() * 0.2,
-        floatSpeedZ: 0.1 + rand() * 0.08,
-        floatAmpX: 0.45 + rand() * 0.3,
-        floatAmpY: 0.4 + rand() * 0.25,
-        floatAmpZ: 0.14 + rand() * 0.09,
-        phaseX: rand() * Math.PI * 2,
-        phaseY: rand() * Math.PI * 2,
-        phaseZ: rand() * Math.PI * 2,
-        memScale: 1.35 + rand() * 0.1,
-      })
-    }
-  }
-
-  // LAYER 4: DEEP — small, behind
-  {
-    const c = isMobile ? 4 : 12
-    const r = isMobile ? 3 : 6
-    const pts = scatter(-18, -35, c, r, 1.4, 0.7, 0.5, rand)
-    for (const [x, y, z] of pts) {
-      instances.push({
-        baseX: x, baseY: y, baseZ: z,
-        scale: isMobile ? 0.12 + rand() * 0.04 : 0.18 + rand() * 0.07,
-        rotSpeedX: 0.08 + rand() * 0.06,
-        rotSpeedY: 0.07 + rand() * 0.04,
-        rotSpeedZ: 0.045 + rand() * 0.03,
-        floatSpeedX: 0.35 + rand() * 0.2,
-        floatSpeedY: 0.3 + rand() * 0.18,
-        floatSpeedZ: 0.16 + rand() * 0.12,
-        floatAmpX: 0.3 + rand() * 0.15,
-        floatAmpY: 0.25 + rand() * 0.12,
-        floatAmpZ: 0.08 + rand() * 0.05,
-        phaseX: rand() * Math.PI * 2,
-        phaseY: rand() * Math.PI * 2,
-        phaseZ: rand() * Math.PI * 2,
-        memScale: 1.35 + rand() * 0.1,
-      })
-    }
-  }
-
-  // LAYER 5: FAR BG — tiny cloud
-  {
-    const c = isMobile ? 4 : 14
-    const r = isMobile ? 3 : 6
-    const pts = scatter(-35, -55, c, r, 1.3, 0.5, 0.35, rand)
-    for (const [x, y, z] of pts) {
-      instances.push({
-        baseX: x, baseY: y, baseZ: z,
-        scale: isMobile ? 0.06 + rand() * 0.04 : 0.08 + rand() * 0.05,
-        rotSpeedX: 0.09 + rand() * 0.06,
-        rotSpeedY: 0.075 + rand() * 0.05,
-        rotSpeedZ: 0.05 + rand() * 0.035,
-        floatSpeedX: 0.35 + rand() * 0.2,
-        floatSpeedY: 0.25 + rand() * 0.15,
-        floatSpeedZ: 0.15 + rand() * 0.1,
-        floatAmpX: 0.35 + rand() * 0.2,
-        floatAmpY: 0.3 + rand() * 0.15,
-        floatAmpZ: 0.1 + rand() * 0.07,
-        phaseX: rand() * Math.PI * 2,
-        phaseY: rand() * Math.PI * 2,
-        phaseZ: rand() * Math.PI * 2,
-        memScale: 1.35 + rand() * 0.1,
-      })
-    }
-  }
-
-  return instances
-}
-
-export default function ExosomeParticles() {
+export default function BilayerMembrane() {
   const groupRef = useRef<THREE.Group>(null)
-  const coreInstanceRef = useRef<THREE.InstancedMesh>(null)
-  const memInstanceRef = useRef<THREE.InstancedMesh>(null)
-  const glowInstanceRef = useRef<THREE.InstancedMesh>(null)
-  const time = useRef(0)
-  const mouseRef = useRef({ x: 0, y: 0 })
-  const { viewport } = useThree()
-
-  const isMobile = viewport.width < 768
-  const segments = isMobile ? 16 : 32
+  const topHeadsRef = useRef<THREE.InstancedMesh>(null)
+  const botHeadsRef = useRef<THREE.InstancedMesh>(null)
+  const tailsRef = useRef<THREE.InstancedMesh>(null)
 
   const noise = useMemo(() => new SimplexNoise(42), [])
 
-  const coreGeo = useMemo(() => createCoreGeo(segments, noise), [segments, noise])
-  const memGeo = useMemo(() => createMembraneGeo(segments, noise), [segments, noise])
+  const {
+    coreGeo,
+    topHeadsData, botHeadsData, tailsData,
+    proteinData
+  } = useMemo(() => {
+    const curve = buildCurve()
+    const coreGeo = buildThickRibbon(curve, CURVE_SEGS, MEMBRANE_WIDTH, MEMBRANE_THICKNESS, noise)
 
-  const coreBump = useMemo(() => getNucleusBumpTexture(), [])
-  const coreNormal = useMemo(() => getNucleusNormalMap(), [])
-  const memBump = useMemo(() => getMembraneBumpTexture(), [])
+    const topPositions: THREE.Vector3[] = []
+    const botPositions: THREE.Vector3[] = []
+    const tailPositions: THREE.Vector3[] = []
 
-  const coreMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: new THREE.Color("#1890c8"),
-    emissive: new THREE.Color("#1078a8"),
-    emissiveIntensity: 0.4,
-    roughness: 0.65,
-    metalness: 0.0,
-    transparent: false,
-    side: THREE.FrontSide,
-    depthWrite: true,
-    ...(coreBump ? { bumpMap: coreBump, bumpScale: 0.22 } : {}),
-    ...(coreNormal ? { normalMap: coreNormal, normalScale: new THREE.Vector2(1.8, 1.8) } : {}),
-  }), [coreBump, coreNormal])
+    for (let col = 0; col < COLS; col++) {
+      const t = (col + 0.5) / COLS
+      const { point, binormal } = getCurveFrame(curve, t)
+      const n = noise.fbm(point.x * 0.12, point.y * 0.12, 0, 2) * 0.01
 
-  const memMat = useMemo(() => {
-    if (isMobile) {
-      return new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#c8dce8"),
-        emissive: new THREE.Color("#4080a0"),
-        emissiveIntensity: 0.08,
-        roughness: 0.4,
-        metalness: 0.0,
-        transparent: true,
-        opacity: 0.25,
-        side: THREE.DoubleSide,
-        depthWrite: false,
+      for (let row = 0; row < ROWS; row++) {
+        const rowT = (row / (ROWS - 1)) - 0.5
+        const offX = binormal.x * rowT * MEMBRANE_WIDTH
+        const offZ = binormal.z * rowT * MEMBRANE_WIDTH
+
+        const px = point.x + offX
+        const py = point.y + n
+        const pz = point.z + offZ
+
+        const jitterX = noise.noise3D(px * 10, 0, pz * 10) * 0.004
+        const jitterZ = noise.noise3D(px * 10 + 300, 0, pz * 10 + 300) * 0.004
+
+        const jx = px + jitterX
+        const jz = pz + jitterZ
+
+        const headTopY = py + MEMBRANE_THICKNESS * 0.38
+        const headBotY = py - MEMBRANE_THICKNESS * 0.38
+        const tailMidY = py
+
+        topPositions.push(new THREE.Vector3(jx, headTopY, jz))
+        botPositions.push(new THREE.Vector3(jx, headBotY, jz))
+        tailPositions.push(new THREE.Vector3(jx, tailMidY, jz))
+      }
+    }
+
+    const proteins: ProteinData[] = []
+    const proteinTs = [0.08, 0.22, 0.38, 0.52, 0.68, 0.82, 0.94]
+    proteinTs.forEach((pt, i) => {
+      const frame = getCurveFrame(curve, pt)
+      const n = noise.fbm(frame.point.x * 0.12, frame.point.y * 0.12, 0, 2) * 0.01
+      const latOff = ((i % 3) - 1) * MEMBRANE_WIDTH * 0.22
+      proteins.push({
+        position: new THREE.Vector3(
+          frame.point.x + frame.binormal.x * latOff,
+          frame.point.y + n + MEMBRANE_THICKNESS * 0.38 + 0.02,
+          frame.point.z + frame.binormal.z * latOff
+        ),
+        tangent: frame.tangent.clone(),
+        binormal: frame.binormal.clone(),
+        isChannel: i % 4 === 2,
+        scale: 0.9 + (i % 3) * 0.15,
       })
-    }
-    return new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color("#c8dce8"),
-      emissive: new THREE.Color("#4080a0"),
-      emissiveIntensity: 0.08,
-      roughness: 0.3,
-      metalness: 0.0,
-      transmission: 0.88,
-      thickness: 0.5,
-      transparent: true,
-      opacity: 0.22,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.1,
-      ior: 1.33,
-      attenuationColor: new THREE.Color("#a0c8e0"),
-      attenuationDistance: 2.0,
-      specularIntensity: 1.0,
-      specularColor: new THREE.Color("#e0f0ff"),
-      ...(memBump ? { bumpMap: memBump, bumpScale: 0.015 } : {}),
     })
-  }, [memBump, isMobile])
 
-  const glowTex = useMemo(() => getGlowTexture(), [])
-
-  const instances = useMemo(() => generateInstances(isMobile), [isMobile])
-  const count = instances.length
-
-  const dummy = useMemo(() => {
-    const o = new THREE.Object3D()
-    o.matrixAutoUpdate = false
-    return o
-  }, [])
-
-  useEffect(() => {
-    const handleMouse = (e: MouseEvent) => {
-      mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1
-      mouseRef.current.y = -(e.clientY / window.innerHeight) * 2 + 1
+    return {
+      coreGeo,
+      topHeadsData: topPositions, botHeadsData: botPositions,
+      tailsData: tailPositions,
+      proteinData: proteins,
     }
-    window.addEventListener("mousemove", handleMouse, { passive: true })
-    return () => window.removeEventListener("mousemove", handleMouse)
-  }, [])
+  }, [noise])
+
+  const proteinGeo = useMemo(() => {
+    return proteinData.map(p => buildProteinGeometry(p.isChannel))
+  }, [proteinData])
 
   useEffect(() => {
-    if (!coreInstanceRef.current || !memInstanceRef.current) return
-    for (let i = 0; i < count; i++) {
-      const e = instances[i]
-      dummy.position.set(e.baseX, e.baseY, e.baseZ)
-      dummy.rotation.set(0, 0, 0)
-      dummy.scale.setScalar(e.scale)
+    if (!topHeadsRef.current) return
+    const dummy = new THREE.Object3D()
+    topHeadsData.forEach((pos, i) => {
+      dummy.position.copy(pos)
       dummy.updateMatrix()
-      coreInstanceRef.current.setMatrixAt(i, dummy.matrix)
-      dummy.scale.setScalar(e.scale * e.memScale)
-      dummy.updateMatrix()
-      memInstanceRef.current.setMatrixAt(i, dummy.matrix)
-    }
-    coreInstanceRef.current.instanceMatrix.needsUpdate = true
-    memInstanceRef.current.instanceMatrix.needsUpdate = true
-  }, [count, instances, dummy])
+      topHeadsRef.current!.setMatrixAt(i, dummy.matrix)
+    })
+    topHeadsRef.current.instanceMatrix.needsUpdate = true
+  }, [topHeadsData])
 
   useEffect(() => {
-    return () => {
-      coreGeo.dispose()
-      memGeo.dispose()
-      coreMat.dispose()
-      memMat.dispose()
-    }
-  }, [coreGeo, memGeo, coreMat, memMat])
+    if (!botHeadsRef.current) return
+    const dummy = new THREE.Object3D()
+    botHeadsData.forEach((pos, i) => {
+      dummy.position.copy(pos)
+      dummy.updateMatrix()
+      botHeadsRef.current!.setMatrixAt(i, dummy.matrix)
+    })
+    botHeadsRef.current.instanceMatrix.needsUpdate = true
+  }, [botHeadsData])
 
-  useFrame((_, delta) => {
-    if (!coreInstanceRef.current || !memInstanceRef.current || !groupRef.current) return
-    const dt = Math.min(delta, 0.05)
-    time.current += dt
-    const t = time.current * 3.0
-
-    const tx = mouseRef.current.x * 0.08
-    const ty = mouseRef.current.y * 0.06
-    groupRef.current.position.x += (tx - groupRef.current.position.x) * 0.5 * dt
-    groupRef.current.position.y += (ty - groupRef.current.position.y) * 0.5 * dt
-
-    const coreMesh = coreInstanceRef.current
-    const memMesh = memInstanceRef.current
-    const m = dummy.matrix
-    const pos = dummy.position
-    const quat = dummy.quaternion
-    const scl = dummy.scale
-    const euler = dummy.rotation
-
-    for (let i = 0; i < count; i++) {
-      const e = instances[i]
-
-      pos.x = e.baseX + Math.sin(t * e.floatSpeedX + e.phaseX) * e.floatAmpX
-      pos.y = e.baseY + Math.cos(t * e.floatSpeedY + e.phaseY) * e.floatAmpY
-      pos.z = e.baseZ + Math.sin(t * e.floatSpeedZ + e.phaseZ) * e.floatAmpZ
-
-      euler.x = t * e.rotSpeedX
-      euler.y = t * e.rotSpeedY
-      euler.z = t * e.rotSpeedZ
-
-      scl.x = scl.y = scl.z = e.scale
-      quat.setFromEuler(euler)
-      m.compose(pos, quat, scl)
-      coreMesh.setMatrixAt(i, m)
-
-      scl.x = scl.y = scl.z = e.scale * e.memScale
-      m.compose(pos, quat, scl)
-      memMesh.setMatrixAt(i, m)
-    }
-
-    coreMesh.instanceMatrix.needsUpdate = true
-    memMesh.instanceMatrix.needsUpdate = true
-  })
+  useEffect(() => {
+    if (!tailsRef.current) return
+    const dummy = new THREE.Object3D()
+    tailsData.forEach((pos, i) => {
+      dummy.position.copy(pos)
+      dummy.updateMatrix()
+      tailsRef.current!.setMatrixAt(i, dummy.matrix)
+    })
+    tailsRef.current.instanceMatrix.needsUpdate = true
+  }, [tailsData])
 
   return (
-    <group ref={groupRef}>
-      <instancedMesh
-        ref={coreInstanceRef}
-        args={[coreGeo, coreMat, count]}
-        frustumCulled={false}
-      />
-      <instancedMesh
-        ref={memInstanceRef}
-        args={[memGeo, memMat, count]}
-        frustumCulled={false}
-      />
-      <ambientLight intensity={isMobile ? 1.0 : 0.9} color="#b0d8f0" />
-      <directionalLight position={[0, 3, 10]} intensity={isMobile ? 1.8 : 2.4} color="#e0f4ff" />
-      {!isMobile && <directionalLight position={[-4, 2, 8]} intensity={1.0} color="#80b8d8" />}
-      {!isMobile && <directionalLight position={[4, -1, 6]} intensity={0.6} color="#70b0d0" />}
+    <group ref={groupRef} position={[0, 0.15, -2.5]}>
+      <mesh geometry={coreGeo} frustumCulled={false}>
+        <meshPhongMaterial
+          color={COLORS.coreRibbon}
+          shininess={15}
+          transparent
+          opacity={0.6}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+
+      <instancedMesh ref={topHeadsRef} args={[undefined, undefined, topHeadsData.length]} frustumCulled={false}>
+        <sphereGeometry args={[HEAD_RADIUS, 7, 5]} />
+        <meshPhongMaterial
+          color={COLORS.headTop}
+          shininess={50}
+          specular={COLORS.headTopSpec}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={botHeadsRef} args={[undefined, undefined, botHeadsData.length]} frustumCulled={false}>
+        <sphereGeometry args={[HEAD_RADIUS * 0.9, 6, 4]} />
+        <meshPhongMaterial
+          color={COLORS.headBottom}
+          shininess={35}
+          specular={COLORS.headBottomSpec}
+        />
+      </instancedMesh>
+
+      <instancedMesh ref={tailsRef} args={[undefined, undefined, tailsData.length]} frustumCulled={false}>
+        <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 5, 1]} />
+        <meshPhongMaterial
+          color={COLORS.tails}
+          shininess={10}
+        />
+      </instancedMesh>
+
+      {proteinData.map((p, i) => (
+        <group
+          key={i}
+          position={[p.position.x, p.position.y, p.position.z]}
+          scale={p.scale}
+        >
+          <mesh geometry={proteinGeo[i]} frustumCulled={false}>
+            <meshPhongMaterial
+              color={COLORS.proteinCap}
+              shininess={40}
+              specular={COLORS.proteinCapSpec}
+            />
+          </mesh>
+        </group>
+      ))}
     </group>
   )
 }

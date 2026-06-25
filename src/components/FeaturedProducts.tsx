@@ -6,12 +6,12 @@ import { products } from "@/data/siteData"
 
 const featuredProducts = products.filter((p) => p.featured).slice(0, 4)
 
-const CARD_W_DESKTOP = 220
-const CARD_H_DESKTOP = 310
-const CARD_W_MOBILE = 160
-const CARD_H_MOBILE = 230
+const CARD_W_DESKTOP = 240
+const CARD_H_DESKTOP = 320
+const CARD_W_MOBILE = 200
+const CARD_H_MOBILE = 280
 const RADIUS_DESKTOP = 420
-const RADIUS_MOBILE = 140
+const RADIUS_MOBILE = 160
 const AUTO_DEG = 90
 const AUTO_INTERVAL = 5000
 const PAUSE_MS = 10000
@@ -205,19 +205,19 @@ export default function FeaturedProducts() {
                     transition: dragRef.current.active ? "none" : "border 0.6s ease",
                   }}
                 />
-                <div className="relative w-full h-[38%] overflow-hidden bg-[#f8fafc]">
+                <div className="relative w-full h-[35%] overflow-hidden bg-[#f8fafc]">
                   <img src={product.img} alt={product.fullName} className="w-full h-full object-cover" draggable={false} loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#f1f5f9] via-[#f1f5f9]/20 to-transparent" />
                 </div>
-                <div className={`relative ${isMobile ? 'px-2.5 pb-2.5 pt-1' : 'px-3 pb-3 pt-1'} flex flex-col h-[62%]`}>
+                <div className={`relative ${isMobile ? 'px-3 pb-3 pt-2' : 'px-4 pb-4 pt-2'} flex flex-col h-[62%]`}>
                   <span
-                    className={`${isMobile ? 'text-[7px]' : 'text-[10px]'} font-bold tracking-wider uppercase mb-0.5`}
+                    className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} font-bold tracking-wider uppercase mb-0.5`}
                     style={{ color: product.accentColor }}
                   >
                     {product.category}
                   </span>
                   <h4
-                    className={`${isMobile ? 'text-[10px]' : 'text-[13px]'} font-bold leading-snug`}
+                    className={`${isMobile ? 'text-[11px]' : 'text-[13px]'} font-bold leading-snug`}
                     style={{
                        color: isFront ? "#111827" : "#64748b",
                       transition: dragRef.current.active ? "none" : "color 0.6s ease",
@@ -225,22 +225,22 @@ export default function FeaturedProducts() {
                   >
                     {product.fullName}
                   </h4>
-                  <p className={`${isMobile ? 'text-[8px] mt-0.5 line-clamp-2' : 'text-[11px] mt-1 line-clamp-2'} text-[#64748b] leading-relaxed`}>{product.desc}</p>
-                  <div className={`${isMobile ? 'mt-1 space-y-0' : 'mt-2 space-y-1'}`}>
+                  <p className={`${isMobile ? 'text-[9px] mt-0.5 line-clamp-2' : 'text-[11px] mt-1 line-clamp-2'} text-[#64748b] leading-relaxed`}>{product.desc}</p>
+                  <div className={`${isMobile ? 'mt-1.5 space-y-0.5' : 'mt-2 space-y-1'}`}>
                     {product.benefits.slice(0, isMobile ? 2 : 3).map((b, j) => (
                       <div key={j} className="flex items-start gap-1" style={{ opacity: isFront ? 1 : 0.5 }}>
-                        <svg className={`${isMobile ? 'w-1.5 h-1.5 mt-[1px]' : 'w-2.5 h-2.5 mt-[2px]'} shrink-0`} style={{ color: product.accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className={`${isMobile ? 'w-2 h-2 mt-[1px]' : 'w-2.5 h-2.5 mt-[2px]'} shrink-0`} style={{ color: product.accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span className={`${isMobile ? 'text-[7px] line-clamp-1' : 'text-[10px] line-clamp-1'} text-[#64748b] leading-snug`}>{b}</span>
+                        <span className={`${isMobile ? 'text-[8px] line-clamp-1' : 'text-[10px] line-clamp-1'} text-[#64748b] leading-snug`}>{b}</span>
                       </div>
                     ))}
                   </div>
-                  <div className={`flex items-center gap-1 mt-auto ${isMobile ? 'pt-1' : 'pt-2'}`}>
-                    <span className={`${isMobile ? 'text-[7px] px-1.5 py-[2px]' : 'text-[10px] px-2 py-[3px]'} rounded-full font-medium`} style={{ background: product.accentColor + "12", color: product.accentColor }}>
+                  <div className={`flex items-center gap-1.5 mt-auto ${isMobile ? 'pt-1.5' : 'pt-2'}`}>
+                    <span className={`${isMobile ? 'text-[8px] px-2 py-[2px]' : 'text-[10px] px-2 py-[3px]'} rounded-full font-medium`} style={{ background: product.accentColor + "12", color: product.accentColor }}>
                       {product.peptides.length} Peptides
                     </span>
-                    <span className={`${isMobile ? 'text-[7px] px-1.5 py-[2px]' : 'text-[10px] px-2 py-[3px]'} rounded-full bg-[#f1f5f9] text-[#64748b] font-medium`}>
+                    <span className={`${isMobile ? 'text-[8px] px-2 py-[2px]' : 'text-[10px] px-2 py-[3px]'} rounded-full bg-[#f1f5f9] text-[#64748b] font-medium`}>
                       {product.size}
                     </span>
                   </div>
@@ -248,7 +248,7 @@ export default function FeaturedProducts() {
                     <Link
                       href={product.href}
                       onClick={(e) => e.stopPropagation()}
-                      className={`${isMobile ? 'mt-1.5 py-1.5 text-[9px]' : 'mt-2.5 py-2 text-[11px]'} flex items-center justify-center gap-1.5 w-full rounded-lg text-white font-semibold`}
+                      className={`${isMobile ? 'mt-2 py-2 text-[10px]' : 'mt-2.5 py-2 text-[11px]'} flex items-center justify-center gap-1.5 w-full rounded-lg text-white font-semibold`}
                       style={{
                         background: `linear-gradient(135deg, ${product.accentColor}, ${product.accentColor}bb)`,
                         boxShadow: "none",

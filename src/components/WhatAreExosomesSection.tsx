@@ -15,10 +15,10 @@ function useInView(threshold = 0.15, rootMargin?: string) {
       ([entry]) => {
         if (entry.isIntersecting) setVisible(true)
       },
-      { threshold: isMobile ? 0.01 : threshold, rootMargin: rootMargin ?? (isMobile ? "200px 0px 0px 0px" : "0px 0px -30px 0px") }
+      { threshold: isMobile ? 0.01 : threshold, rootMargin: isMobile ? "400px 0px 0px 0px" : "0px 0px -20px 0px" }
     )
     obs.observe(el)
-    const timer = isMobile ? setTimeout(() => setVisible(true), 1500) : setTimeout(() => setVisible(true), 4000)
+    const timer = isMobile ? setTimeout(() => setVisible(true), 500) : setTimeout(() => setVisible(true), 2000)
     return () => { obs.disconnect(); clearTimeout(timer) }
   }, [threshold, rootMargin])
 
@@ -57,7 +57,7 @@ export default function WhatAreExosomesSection() {
               opacity: hero.visible ? 1 : 0,
               transform: hero.visible ? "translateX(0) scale(1)" : "translateX(-60px) scale(0.95)",
               filter: hero.visible ? "blur(0px)" : "blur(6px)",
-              transition: "opacity 1.2s cubic-bezier(0.16,1,0.3,1), transform 1.2s cubic-bezier(0.16,1,0.3,1), filter 1.2s cubic-bezier(0.16,1,0.3,1)",
+              transition: "opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1), filter 0.6s cubic-bezier(0.16,1,0.3,1)",
             }}
           >
             {/* Glass card */}
@@ -108,7 +108,7 @@ export default function WhatAreExosomesSection() {
               opacity: hero.visible ? 1 : 0,
               transform: hero.visible ? "translateX(0) scale(1)" : "translateX(60px) scale(0.95)",
               filter: hero.visible ? "blur(0px)" : "blur(6px)",
-              transition: "opacity 1.2s cubic-bezier(0.16,1,0.3,1) 0.3s, transform 1.2s cubic-bezier(0.16,1,0.3,1) 0.3s, filter 1.2s cubic-bezier(0.16,1,0.3,1) 0.3s",
+              transition: "opacity 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s, transform 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s, filter 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s",
             }}
           >
             <div className="relative w-full max-w-[460px] aspect-square">
@@ -319,7 +319,7 @@ export default function WhatAreExosomesSection() {
                 </g>
 
                 {/* Left: RNA CARGO */}
-                <g opacity={hero.visible ? 1 : 0} style={{ transition: "opacity 1s ease 1.2s" }}>
+                <g opacity={hero.visible ? 1 : 0} style={{ transition: "opacity 0.5s ease 0.3s" }}>
                   <line x1="58" y1="192" x2="162" y2="202" stroke="url(#labelLineL)" strokeWidth="1.2" />
                   <circle cx="162" cy="202" r="3" fill="#ffa050" />
                   <text x="14" y="184" fill="#ffd090" fontSize="10" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">RNA CARGO</text>
@@ -327,7 +327,7 @@ export default function WhatAreExosomesSection() {
                 </g>
 
                 {/* Left lower: CARGO PROTEINS */}
-                <g opacity={hero.visible ? 1 : 0} style={{ transition: "opacity 1s ease 1.4s" }}>
+                <g opacity={hero.visible ? 1 : 0} style={{ transition: "opacity 0.5s ease 0.4s" }}>
                   <line x1="58" y1="288" x2="152" y2="258" stroke="url(#labelLineL)" strokeWidth="1.2" />
                   <circle cx="152" cy="258" r="3" fill="#60d0f0" />
                   <text x="6" y="281" fill="#e0f4ff" fontSize="10" fontWeight="700" fontFamily="system-ui, sans-serif" letterSpacing="0.8">CARGO PROTEINS</text>
@@ -335,7 +335,7 @@ export default function WhatAreExosomesSection() {
                 </g>
 
                 {/* Bottom: Size indicator */}
-                <g opacity={hero.visible ? 1 : 0} style={{ transition: "opacity 1s ease 1.6s" }}>
+                <g opacity={hero.visible ? 1 : 0} style={{ transition: "opacity 0.5s ease 0.5s" }}>
                   <line x1="180" y1="412" x2="180" y2="388" stroke="#60d8ff" strokeWidth="0.8" opacity="0.5" />
                   <line x1="280" y1="412" x2="280" y2="388" stroke="#60d8ff" strokeWidth="0.8" opacity="0.5" />
                   <line x1="180" y1="407" x2="280" y2="407" stroke="#60d8ff" strokeWidth="1" opacity="0.6" />

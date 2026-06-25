@@ -377,7 +377,7 @@ export default function BlogsPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-transparent overflow-hidden">
+      <main className="min-h-screen bg-transparent overflow-x-hidden">
 
         {/* ═══════════ HERO ═══════════ */}
         <section className="relative pt-28 pb-14 md:pt-36 md:pb-20 overflow-hidden">
@@ -719,7 +719,7 @@ export default function BlogsPage() {
         <section className="relative py-10 md:py-16">
           <div className="max-w-4xl mx-auto px-6 text-center">
             <div ref={cta.ref} style={{ opacity: cta.visible ? 1 : 0, transform: `translateY(${cta.visible ? 0 : 60}px) scale(${cta.visible ? 1 : 0.9})`, transition: "opacity 1.5s cubic-bezier(0.22,1,0.36,1), transform 1.5s cubic-bezier(0.22,1,0.36,1)" }}>
-              <div className="relative rounded-3xl p-8 md:p-12 lg:p-16 overflow-hidden"
+              <div className="relative rounded-3xl p-5 md:p-8 lg:p-12 xl:p-16 overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
                 }}>

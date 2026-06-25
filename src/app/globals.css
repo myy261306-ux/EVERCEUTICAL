@@ -43,9 +43,36 @@ canvas {
 }
 
 html {
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: auto;
+  scroll-behavior: auto;
+}
+
+html.lenis, html.lenis body {
+  -webkit-overflow-scrolling: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Mobile: disable heavy effects for smooth scroll */
+@media (max-width: 768px) {
+  canvas {
+    will-change: auto;
+    transform: none;
+  }
+
+  .glass-card, .glass-surface, .glass-surface-strong {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
 }
 
 ::-webkit-scrollbar {
@@ -147,19 +174,6 @@ html {
   transform: translate3d(0, 0, 0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-}
-
-html.lenis {
-  height: auto;
-}
-.lenis.lenis-smooth {
-  scroll-behavior: smooth;
-}
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-.lenis.lenis-stopped {
-  overflow: hidden;
 }
 
 @keyframes scrollBounce {

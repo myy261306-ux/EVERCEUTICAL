@@ -16,7 +16,7 @@ export default function ProductLoading() {
               </div>
             </div>
             <div className="flex justify-center lg:justify-end">
-              <div className="w-[420px] h-[420px] bg-[#e2e8f0] rounded-3xl animate-pulse" />
+              <div className="w-full max-w-[280px] md:max-w-[360px] lg:max-w-[420px] h-[280px] md:h-[360px] lg:h-[420px] bg-[#e2e8f0] rounded-3xl animate-pulse" />
             </div>
           </div>
         </div>

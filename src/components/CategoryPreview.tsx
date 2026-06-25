@@ -16,10 +16,10 @@ function useInView(threshold = 0.15, rootMargin?: string) {
       ([entry]) => {
         if (entry.isIntersecting) setVisible(true)
       },
-      { threshold: isMobile ? 0.01 : threshold, rootMargin: rootMargin ?? (isMobile ? "200px 0px 0px 0px" : "0px 0px -30px 0px") }
+      { threshold: isMobile ? 0.01 : threshold, rootMargin: isMobile ? "400px 0px 0px 0px" : "0px 0px -20px 0px" }
     )
     obs.observe(el)
-    const timer = isMobile ? setTimeout(() => setVisible(true), 1500) : setTimeout(() => setVisible(true), 4000)
+    const timer = isMobile ? setTimeout(() => setVisible(true), 500) : setTimeout(() => setVisible(true), 2000)
     return () => { obs.disconnect(); clearTimeout(timer) }
   }, [threshold, rootMargin])
 
@@ -76,7 +76,7 @@ export default function CategoryPreview() {
           style={{
             opacity: headerInView.visible ? 1 : 0,
             transform: headerInView.visible ? "translateY(0)" : "translateY(30px)",
-            transition: "opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1)",
+            transition: "opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1)",
           }}
         >
           <span className="text-[10px] text-[#38bdf8] font-bold tracking-[0.25em] uppercase bg-[#38bdf8]/[0.08] px-4 py-1.5 rounded-full inline-block">
@@ -100,7 +100,7 @@ export default function CategoryPreview() {
               style={{
                 opacity: headerInView.visible ? 1 : 0,
                 transform: headerInView.visible ? "translateY(0)" : "translateY(20px)",
-                transition: `opacity 0.6s cubic-bezier(0.16,1,0.3,1) ${0.15 + index * 0.1}s, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${0.15 + index * 0.1}s`,
+                transition: `opacity 0.4s cubic-bezier(0.16,1,0.3,1) ${0.08 + index * 0.06}s, transform 0.4s cubic-bezier(0.16,1,0.3,1) ${0.08 + index * 0.06}s`,
               }}
             >
               <div className="relative glass-card rounded-2xl p-8 transition-all duration-500 hover:-translate-y-1 text-center">

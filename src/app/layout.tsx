@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
-import SceneWrapper from "@/components/SceneWrapper"
+import BackgroundMembrane from "@/components/BackgroundMembrane"
 import LenisProvider from "@/components/LenisProvider"
 import { LoadingProvider } from "@/components/LoadingContext"
 import LoadingScreen from "@/components/LoadingScreen"
@@ -48,7 +48,7 @@ export default function RootLayout({
         <LoadingProvider>
           <LoadingScreen />
           <LenisProvider>
-            <SceneWrapper />
+            <BackgroundMembrane />
             <div className="relative" style={{ zIndex: 10 }}>
               {children}
             </div>
