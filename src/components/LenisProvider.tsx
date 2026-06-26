@@ -13,13 +13,13 @@ export default function LenisProvider({ children }: { children: ReactNode }) {
     const isMobile = typeof window !== "undefined" && window.innerWidth < 768
 
     const lenis = new Lenis({
-      duration: isMobile ? 1.6 : 1.0,
+      duration: isMobile ? 1.0 : 1.2,
       easing: (t: number) => Math.min(1, 1 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: isMobile ? 0.5 : 0.8,
-      touchMultiplier: 2.0,
+      wheelMultiplier: isMobile ? 1.0 : 1.0,
+      touchMultiplier: 1.5,
       infinite: false,
     })
 

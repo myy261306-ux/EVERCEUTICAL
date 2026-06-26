@@ -357,9 +357,9 @@ function bufferGeoToPart(geo: THREE.BufferGeometry): { positions: number[]; norm
 function buildDNAHelix(
   length: number, radius: number, turns: number
 ): THREE.BufferGeometry {
-  const TUBE_R = 0.008
-  const RUNG_R = 0.005
-  const RUNG_COUNT = 36
+  const TUBE_R = 0.006
+  const RUNG_R = 0.004
+  const RUNG_COUNT = 40
 
   class HelixPath extends THREE.Curve<THREE.Vector3> {
     r: number; h: number; n: number; o: number
@@ -429,22 +429,22 @@ function buildDNAHelix(
 
 function buildProteinBlob(seed: number): THREE.BufferGeometry {
   const pseudoRand = (s: number) => ((s * 9301 + 49297) % 233280) / 233280
-  const count = 4 + Math.floor(pseudoRand(seed) * 2)
+  const count = 3 + Math.floor(pseudoRand(seed) * 2)
   const parts: { positions: number[]; normals: number[]; indices: number[] }[] = []
   for (let i = 0; i < count; i++) {
-    const r = 0.012 + pseudoRand(seed * 7 + i * 13) * 0.01
-    const ox = (pseudoRand(seed * 11 + i * 17) - 0.5) * 0.04
-    const oy = (pseudoRand(seed * 13 + i * 19) - 0.5) * 0.04
-    const oz = (pseudoRand(seed * 17 + i * 23) - 0.5) * 0.04
+    const r = 0.010 + pseudoRand(seed * 7 + i * 13) * 0.008
+    const ox = (pseudoRand(seed * 11 + i * 17) - 0.5) * 0.03
+    const oy = (pseudoRand(seed * 13 + i * 19) - 0.5) * 0.03
+    const oz = (pseudoRand(seed * 17 + i * 23) - 0.5) * 0.03
     parts.push(buildSphereVerts(ox, oy, oz, r, 8, 6))
   }
   return mergeBufferGeos(parts)
 }
 
 const EXO_DNA_GEOMS = [
-  (() => { const g = buildDNAHelix(0.55, 0.08, 3.0); return g })(),
-  (() => { const g = buildDNAHelix(0.48, 0.07, 3.5); return g })(),
-  (() => { const g = buildDNAHelix(0.42, 0.06, 2.8); return g })(),
+  (() => { const g = buildDNAHelix(0.35, 0.055, 3.5); return g })(),
+  (() => { const g = buildDNAHelix(0.30, 0.048, 4.0); return g })(),
+  (() => { const g = buildDNAHelix(0.25, 0.042, 3.0); return g })(),
 ]
 
 function buildTexturedSphere(
@@ -482,47 +482,47 @@ const EXO_PROTEIN_GEOMS = [
 const EXO_CONTENTS = [
   {
     dnas: [
-      { gi: 0, pos: [-0.16, 0, 0] as const, rot: [0.3, 0.5, 0] as const },
-      { gi: 1, pos: [0.16, 0, 0] as const, rot: [-0.2, 1.2, 0.1] as const },
+      { gi: 0, pos: [-0.12, 0, 0] as const, rot: [0.3, 0.5, 0] as const },
+      { gi: 1, pos: [0.12, 0, 0] as const, rot: [-0.2, 1.2, 0.1] as const },
     ],
     proteins: [
-      { gi: 0, pos: [0, 0.22, 0] as const, sc: 0.8 },
-      { gi: 1, pos: [0, -0.22, 0] as const, sc: 0.7 },
-      { gi: 2, pos: [0, 0, 0.22] as const, sc: 0.75 },
+      { gi: 0, pos: [0, 0.18, 0] as const, sc: 1.0 },
+      { gi: 1, pos: [0, -0.18, 0] as const, sc: 0.9 },
+      { gi: 2, pos: [0, 0, 0.18] as const, sc: 0.95 },
     ],
   },
   {
     dnas: [
-      { gi: 1, pos: [-0.14, 0, 0] as const, rot: [0.2, 0.3, -0.1] as const },
-      { gi: 2, pos: [0.14, 0, 0] as const, rot: [-0.1, 0.8, 0.2] as const },
-      { gi: 0, pos: [0, 0, 0.14] as const, rot: [0.15, 1.5, -0.1] as const },
+      { gi: 1, pos: [-0.10, 0, 0] as const, rot: [0.2, 0.3, -0.1] as const },
+      { gi: 2, pos: [0.10, 0, 0] as const, rot: [-0.1, 0.8, 0.2] as const },
+      { gi: 0, pos: [0, 0, 0.10] as const, rot: [0.15, 1.5, -0.1] as const },
     ],
     proteins: [
-      { gi: 3, pos: [0, 0.2, -0.12] as const, sc: 0.8 },
-      { gi: 4, pos: [0, -0.2, -0.12] as const, sc: 0.75 },
+      { gi: 3, pos: [0, 0.16, -0.10] as const, sc: 1.0 },
+      { gi: 4, pos: [0, -0.16, -0.10] as const, sc: 0.9 },
     ],
   },
   {
     dnas: [
-      { gi: 0, pos: [0.14, 0, 0] as const, rot: [-0.2, 0.6, 0.15] as const },
-      { gi: 2, pos: [-0.14, 0, 0] as const, rot: [0.2, 1.1, -0.1] as const },
-      { gi: 1, pos: [0, 0, -0.14] as const, rot: [0.1, 1.8, 0.2] as const },
+      { gi: 0, pos: [0.10, 0, 0] as const, rot: [-0.2, 0.6, 0.15] as const },
+      { gi: 2, pos: [-0.10, 0, 0] as const, rot: [0.2, 1.1, -0.1] as const },
+      { gi: 1, pos: [0, 0, -0.10] as const, rot: [0.1, 1.8, 0.2] as const },
     ],
     proteins: [
-      { gi: 1, pos: [0, 0.2, 0.12] as const, sc: 0.75 },
-      { gi: 2, pos: [0, -0.2, 0.12] as const, sc: 0.8 },
-      { gi: 4, pos: [0, 0, -0.2] as const, sc: 0.7 },
+      { gi: 1, pos: [0, 0.16, 0.10] as const, sc: 0.95 },
+      { gi: 2, pos: [0, -0.16, 0.10] as const, sc: 1.0 },
+      { gi: 4, pos: [0, 0, -0.16] as const, sc: 0.9 },
     ],
   },
   {
     dnas: [
-      { gi: 2, pos: [-0.13, 0, 0] as const, rot: [0.2, 0.4, 0.15] as const },
-      { gi: 0, pos: [0.13, 0, 0] as const, rot: [-0.15, 1.0, -0.1] as const },
+      { gi: 2, pos: [-0.10, 0, 0] as const, rot: [0.2, 0.4, 0.15] as const },
+      { gi: 0, pos: [0.10, 0, 0] as const, rot: [-0.15, 1.0, -0.1] as const },
     ],
     proteins: [
-      { gi: 3, pos: [0, 0.2, 0.12] as const, sc: 0.8 },
-      { gi: 1, pos: [0, -0.2, 0.12] as const, sc: 0.75 },
-      { gi: 4, pos: [0, 0, -0.2] as const, sc: 0.7 },
+      { gi: 3, pos: [0, 0.16, 0.10] as const, sc: 1.0 },
+      { gi: 1, pos: [0, -0.16, 0.10] as const, sc: 0.9 },
+      { gi: 4, pos: [0, 0, -0.16] as const, sc: 0.95 },
     ],
   },
 ]
