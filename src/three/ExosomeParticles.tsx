@@ -13,7 +13,7 @@ const HEAD_RADIUS = 0.022
 const TAIL_RADIUS = 0.011
 const TAIL_GAP = 0.18
 const VERTS_PER_STEP = 8
-const GAP = 0.0008
+const GAP = 0
 
 const CENTER_T_MIN = 0.37
 const CENTER_T_MAX = 0.63
@@ -277,6 +277,10 @@ function fillRibbonFromFrames(
   segs: number,
   tMin: number,
   tMax: number,
+  edgeOffsetX: number = 0,
+  edgeOffsetY: number = 0,
+  edgeOffsetZ: number = 0,
+  innerEdgeRight: boolean = true,
 ) {
   const halfW = MEMBRANE_WIDTH / 2
   const halfH = MEMBRANE_THICKNESS / 2
@@ -308,11 +312,16 @@ function fillRibbonFromFrames(
       [-nx * 0.3, -ny * 0.3, -nz * 0.3], [-nx * 0.3, -ny * 0.3, -nz * 0.3],
       [0, 1, 0], [0, 1, 0], [0, -1, 0], [0, -1, 0],
     ]
+    const localT = i / segs
+    const weight = innerEdgeRight ? localT : (1 - localT)
+    const ox = edgeOffsetX * weight
+    const oy = edgeOffsetY * weight
+    const oz = edgeOffsetZ * weight
     for (let j = 0; j < VERTS_PER_STEP; j++) {
       const idx = (i * VERTS_PER_STEP + j) * 3
-      posArr[idx] = v[j][0]
-      posArr[idx + 1] = v[j][1]
-      posArr[idx + 2] = v[j][2]
+      posArr[idx] = v[j][0] + ox
+      posArr[idx + 1] = v[j][1] + oy
+      posArr[idx + 2] = v[j][2] + oz
       normArr[idx] = faceNormals[j][0]
       normArr[idx + 1] = faceNormals[j][1]
       normArr[idx + 2] = faceNormals[j][2]
@@ -435,16 +444,16 @@ export default function BilayerMembrane() {
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime()
 
-    scrollRef.current += (scrollTargetRef.current - scrollRef.current) * 0.08
+    scrollRef.current += (scrollTargetRef.current - scrollRef.current) * 0.03
 
     const rawScroll = scrollRef.current
     let curlAmount = 0
     let circleDrop = 0
-    if (rawScroll < 0.5) {
-      curlAmount = rawScroll * 2
+    if (rawScroll < 0.20) {
+      curlAmount = rawScroll / 0.20
     } else {
       curlAmount = 1
-      circleDrop = (rawScroll - 0.5) * 2 * 1.2
+      circleDrop = (rawScroll - 0.20) / 0.80 * 1.2
     }
 
     if (groupRef.current) {
@@ -457,10 +466,24 @@ export default function BilayerMembrane() {
       groupRef.current.scale.setScalar(groupScale.current)
     }
 
+    const bLeftFlat = getFrameAtT(parentFrames, CENTER_T_MIN).point
+    const bRightFlat = getFrameAtT(parentFrames, CENTER_T_MAX).point
+    const bLeftCurledX = centerMidX + centerR * Math.sin(Math.PI)
+    const bLeftCurledY = centerMidY + centerR * Math.cos(Math.PI)
+    const bRightAngle = Math.PI + Math.PI * 2 * curlAmount
+    const bRightCurledX = centerMidX + centerR * Math.sin(bRightAngle)
+    const bRightCurledY = centerMidY + centerR * Math.cos(bRightAngle)
+    const leftEdgeOffX = (bLeftCurledX - bLeftFlat.x) * curlAmount
+    const leftEdgeOffY = (bLeftCurledY - bLeftFlat.y) * curlAmount
+    const leftEdgeOffZ = (centerMidZ - bLeftFlat.z) * curlAmount
+    const rightEdgeOffX = (bRightCurledX - bRightFlat.x) * curlAmount
+    const rightEdgeOffY = (bRightCurledY - bRightFlat.y) * curlAmount
+    const rightEdgeOffZ = (centerMidZ - bRightFlat.z) * curlAmount
+
     if (leftRibbonRef.current) {
       const posAttr = leftRibbonRef.current.geometry.attributes.position as THREE.BufferAttribute
       const normAttr = leftRibbonRef.current.geometry.attributes.normal as THREE.BufferAttribute
-      fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, LEFT_SEGS, 0, LEFT_T_MAX)
+      fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, LEFT_SEGS, 0, LEFT_T_MAX, leftEdgeOffX, leftEdgeOffY, leftEdgeOffZ, true)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
     }
@@ -476,7 +499,7 @@ export default function BilayerMembrane() {
     if (rightRibbonRef.current) {
       const posAttr = rightRibbonRef.current.geometry.attributes.position as THREE.BufferAttribute
       const normAttr = rightRibbonRef.current.geometry.attributes.normal as THREE.BufferAttribute
-      fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, RIGHT_SEGS, RIGHT_T_MIN, 1.0)
+      fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, RIGHT_SEGS, RIGHT_T_MIN, 1.0, rightEdgeOffX, rightEdgeOffY, rightEdgeOffZ, false)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
     }
@@ -490,6 +513,10 @@ export default function BilayerMembrane() {
       tMin: number,
       tMax: number,
       isCenter: boolean,
+      edgeOffX: number = 0,
+      edgeOffY: number = 0,
+      edgeOffZ: number = 0,
+      innerEdgeRight: boolean = true,
     ) {
       if (!topRef || !botRef || !tailsInst) return
       for (let col = 0; col < cols; col++) {
@@ -526,6 +553,11 @@ export default function BilayerMembrane() {
 
         const headOffset = MEMBRANE_THICKNESS * 0.38
 
+        const headWeight = isCenter ? 0 : (innerEdgeRight ? s : (1 - s))
+        const hox = edgeOffX * headWeight
+        const hoy = edgeOffY * headWeight
+        const hoz = edgeOffZ * headWeight
+
         for (let row = 0; row < rows; row++) {
           const rowT = (row / (rows - 1)) - 0.5
           const offX = bx * rowT * MEMBRANE_WIDTH
@@ -537,20 +569,20 @@ export default function BilayerMembrane() {
 
           const jitterX = noise.noise3D(fpx * 10 + time * 0.12, 0, fpz * 10) * 0.006
           const jitterZ = noise.noise3D(fpx * 10 + 300, 0, fpz * 10 + time * 0.12 + 300) * 0.006
-          const jx = fpx + jitterX
-          const jz = fpz + jitterZ
+          const jx = fpx + jitterX + hox
+          const jz = fpz + jitterZ + hoz
 
           const idx = col * rows + row
 
-          dummy.position.set(jx + hnx * headOffset, fpy + hny * headOffset, jz + hnz * headOffset)
+          dummy.position.set(jx + hnx * headOffset, fpy + hoy + hny * headOffset, jz + hnz * headOffset)
           dummy.updateMatrix()
           topRef.setMatrixAt(idx, dummy.matrix)
 
-          dummy.position.set(jx - hnx * headOffset, fpy - hny * headOffset, jz - hnz * headOffset)
+          dummy.position.set(jx - hnx * headOffset, fpy + hoy - hny * headOffset, jz - hnz * headOffset)
           dummy.updateMatrix()
           botRef.setMatrixAt(idx, dummy.matrix)
 
-          dummy.position.set(jx, fpy, jz)
+          dummy.position.set(jx, fpy + hoy, jz)
           dummy.quaternion.setFromUnitVectors(
             new THREE.Vector3(0, 1, 0),
             new THREE.Vector3(hnx, hny, hnz)
@@ -564,9 +596,9 @@ export default function BilayerMembrane() {
       tailsInst.instanceMatrix.needsUpdate = true
     }
 
-    updateHeads(leftTopHeadsRef.current, leftBotHeadsRef.current, leftTailsRef.current, LEFT_COLS, MAIN_ROWS, 0, LEFT_T_MAX, false)
+    updateHeads(leftTopHeadsRef.current, leftBotHeadsRef.current, leftTailsRef.current, LEFT_COLS, MAIN_ROWS, 0, LEFT_T_MAX, false, leftEdgeOffX, leftEdgeOffY, leftEdgeOffZ, true)
     updateHeads(centerTopHeadsRef.current, centerBotHeadsRef.current, centerTailsRef.current, CENTER_COLS, MAIN_ROWS, CENTER_T_MIN, CENTER_T_MAX, true)
-    updateHeads(rightTopHeadsRef.current, rightBotHeadsRef.current, rightTailsRef.current, RIGHT_COLS, MAIN_ROWS, RIGHT_T_MIN, 1.0, false)
+    updateHeads(rightTopHeadsRef.current, rightBotHeadsRef.current, rightTailsRef.current, RIGHT_COLS, MAIN_ROWS, RIGHT_T_MIN, 1.0, false, rightEdgeOffX, rightEdgeOffY, rightEdgeOffZ, false)
   })
 
   return (
