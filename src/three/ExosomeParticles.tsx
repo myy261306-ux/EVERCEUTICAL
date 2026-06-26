@@ -6,14 +6,14 @@ import * as THREE from "three"
 import { SimplexNoise } from "./SimplexNoise"
 
 const CURVE_SEGS = 220
-const MEMBRANE_WIDTH = 1.2
+const MEMBRANE_WIDTH = 0.95
 const MEMBRANE_THICKNESS = 0.28
-const MAIN_ROWS = 16
-const HEAD_RADIUS = 0.028
-const TAIL_RADIUS = 0.014
+const MAIN_ROWS = 20
+const HEAD_RADIUS = 0.022
+const TAIL_RADIUS = 0.011
 const TAIL_GAP = 0.18
 const VERTS_PER_STEP = 8
-const GAP = 0.012
+const GAP = 0.0008
 
 const CENTER_T_MIN = 0.37
 const CENTER_T_MAX = 0.63
@@ -22,38 +22,38 @@ const RIGHT_T_MIN = CENTER_T_MAX + GAP
 const LEFT_SEGS = Math.floor(CURVE_SEGS * LEFT_T_MAX)
 const RIGHT_SEGS = Math.floor(CURVE_SEGS * (1 - RIGHT_T_MIN))
 const CENTER_SEGS = Math.floor(CURVE_SEGS * (CENTER_T_MAX - CENTER_T_MIN))
-const MAIN_COLS = 200
+const MAIN_COLS = 280
 const LEFT_COLS = Math.floor(MAIN_COLS * LEFT_T_MAX)
 const RIGHT_COLS = Math.floor(MAIN_COLS * (1 - RIGHT_T_MIN))
 const CENTER_COLS = Math.floor(MAIN_COLS * (CENTER_T_MAX - CENTER_T_MIN))
 
 const COLORS = {
-  headTop: new THREE.Color("#b89830"),
-  headTopSpec: new THREE.Color("#e8d060"),
-  headBottom: new THREE.Color("#907820"),
-  headBottomSpec: new THREE.Color("#c0a040"),
-  tails: new THREE.Color("#506030"),
-  coreRibbon: new THREE.Color("#706838"),
-  coreRibbonSpec: new THREE.Color("#b8a858"),
+  headTop: new THREE.Color("#a89060"),
+  headTopSpec: new THREE.Color("#c8b080"),
+  headBottom: new THREE.Color("#8a7848"),
+  headBottomSpec: new THREE.Color("#b09868"),
+  tails: new THREE.Color("#6a5c38"),
+  coreRibbon: new THREE.Color("#8a7850"),
+  coreRibbonSpec: new THREE.Color("#a89870"),
 }
 
 const SAMPLE_N = 200
 
 function buildStraightControlPoints(): THREE.Vector3[] {
   return [
-    new THREE.Vector3(-12.0, 0.8, -1.8),
-    new THREE.Vector3(-9.0, 0.5, -1.0),
-    new THREE.Vector3(-6.5, 0.28, -0.4),
-    new THREE.Vector3(-4.0, 0.12, 0.0),
-    new THREE.Vector3(-2.0, 0.03, 0.15),
-    new THREE.Vector3(-0.5, -0.01, 0.2),
-    new THREE.Vector3(0.0, -0.02, 0.2),
-    new THREE.Vector3(0.5, 0.0, 0.15),
-    new THREE.Vector3(2.0, 0.06, 0.0),
-    new THREE.Vector3(4.0, 0.16, -0.2),
-    new THREE.Vector3(6.5, 0.32, -0.5),
-    new THREE.Vector3(9.0, 0.55, -1.1),
-    new THREE.Vector3(12.0, 0.85, -1.9),
+    new THREE.Vector3(-12.0, 0.45, -1.5),
+    new THREE.Vector3(-9.0, 0.28, -0.8),
+    new THREE.Vector3(-6.5, 0.14, -0.3),
+    new THREE.Vector3(-4.0, 0.05, 0.0),
+    new THREE.Vector3(-2.0, 0.01, 0.08),
+    new THREE.Vector3(-0.5, -0.01, 0.1),
+    new THREE.Vector3(0.0, -0.01, 0.1),
+    new THREE.Vector3(0.5, 0.0, 0.08),
+    new THREE.Vector3(2.0, 0.03, 0.0),
+    new THREE.Vector3(4.0, 0.08, -0.15),
+    new THREE.Vector3(6.5, 0.18, -0.35),
+    new THREE.Vector3(9.0, 0.32, -0.85),
+    new THREE.Vector3(12.0, 0.5, -1.6),
   ]
 }
 
@@ -117,6 +117,157 @@ function getFrameAtT(frames: CenterFrame[], t: number) {
   return { point: new THREE.Vector3(x, y, z), tangent: tan, binormal, normal }
 }
 
+function computeArcLength(frames: CenterFrame[], tMin: number, tMax: number): number {
+  let len = 0
+  const steps = 200
+  const dt = (tMax - tMin) / steps
+  for (let i = 0; i < steps; i++) {
+    const t0 = tMin + dt * i
+    const t1 = tMin + dt * (i + 1)
+    const a = getFrameAtT(frames, t0)
+    const b = getFrameAtT(frames, t1)
+    const dx = b.point.x - a.point.x
+    const dy = b.point.y - a.point.y
+    const dz = b.point.z - a.point.z
+    len += Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+  return len
+}
+
+function fillCenterCurlRibbon(
+  frames: CenterFrame[],
+  noise: SimplexNoise,
+  time: number,
+  posArr: Float32Array,
+  normArr: Float32Array,
+  segs: number,
+  tMin: number,
+  tMax: number,
+  curlAmount: number,
+  centerMidX: number,
+  centerMidY: number,
+  centerMidZ: number,
+  R: number,
+  dropOffset: number,
+) {
+  const halfW = MEMBRANE_WIDTH / 2
+  const halfH = MEMBRANE_THICKNESS / 2
+  const innerR = halfH * 0.6
+  const outerR = halfH
+
+  for (let i = 0; i <= segs; i++) {
+    const s = i / segs
+    const t = tMin + (tMax - tMin) * s
+
+    const flatFrame = getFrameAtT(frames, t)
+    const flatPx = flatFrame.point.x
+    const flatPy = flatFrame.point.y
+    const flatPz = flatFrame.point.z
+    const flatTx = flatFrame.tangent.x
+    const flatTy = flatFrame.tangent.y
+    const flatTz = flatFrame.tangent.z
+
+    const angle = Math.PI + s * Math.PI * 2 * curlAmount
+    const curledPx = centerMidX + R * Math.sin(angle)
+    const curledPy = centerMidY + R * Math.cos(angle)
+    const curledPz = centerMidZ
+
+    const curledTx = Math.cos(angle)
+    const curledTy = -Math.sin(angle)
+    const curledTz = 0
+
+    const cx = flatPx + (curledPx - flatPx) * curlAmount
+    const cy = flatPy + (curledPy - flatPy) * curlAmount
+    const cz = flatPz + (curledPz - flatPz) * curlAmount
+
+    const tx = flatTx + (curledTx - flatTx) * curlAmount
+    const ty = flatTy + (curledTy - flatTy) * curlAmount
+    const tz = flatTz + (curledTz - flatTz) * curlAmount
+
+    const tlen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1
+    const tangentX = tx / tlen, tangentY = ty / tlen, tangentZ = tz / tlen
+
+    const bx = 0, by = 0, bz = 1
+    const nx = by * tangentZ - bz * tangentY
+    const ny = bz * tangentX - bx * tangentZ
+    const nz = bx * tangentY - by * tangentX
+    const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1
+
+    const microWave = Math.sin(time * 0.5 + t * Math.PI * 3) * 0.003
+    const microNoise = noise.fbm(cx * 0.12 + time * 0.04, cy * 0.12, 0, 2) * 0.008
+    const mcy = cy + microWave + microNoise - dropOffset
+
+    const fnx = nx / nlen, fny = ny / nlen, fnz = nz / nlen
+
+    const v = [
+      [cx + bx * halfW + fnx * halfH, mcy + fny * innerR, cz + bz * halfW + fnz * halfH],
+      [cx - bx * halfW + fnx * halfH, mcy + fny * innerR, cz - bz * halfW + fnz * halfH],
+      [cx - bx * halfW - fnx * halfH, mcy - fny * innerR, cz - bz * halfW - fnz * halfH],
+      [cx + bx * halfW - fnx * halfH, mcy - fny * innerR, cz + bz * halfW - fnz * halfH],
+      [cx + bx * halfW + fnx * halfH, mcy + fny * outerR, cz + bz * halfW + fnz * halfH],
+      [cx - bx * halfW + fnx * halfH, mcy + fny * outerR, cz - bz * halfW + fnz * halfH],
+      [cx - bx * halfW - fnx * halfH, mcy - fny * outerR, cz - bz * halfW - fnz * halfH],
+      [cx + bx * halfW - fnx * halfH, mcy - fny * outerR, cz + bz * halfW - fnz * halfH],
+    ]
+    const faceNormals = [
+      [fnx * 0.3, fny * 0.3, fnz * 0.3], [fnx * 0.3, fny * 0.3, fnz * 0.3],
+      [-fnx * 0.3, -fny * 0.3, -fnz * 0.3], [-fnx * 0.3, -fny * 0.3, -fnz * 0.3],
+      [fnx, fny, fnz], [fnx, fny, fnz], [-fnx, -fny, -fnz], [-fnx, -fny, -fnz],
+    ]
+    for (let j = 0; j < VERTS_PER_STEP; j++) {
+      const idx = (i * VERTS_PER_STEP + j) * 3
+      posArr[idx] = v[j][0]
+      posArr[idx + 1] = v[j][1]
+      posArr[idx + 2] = v[j][2]
+      normArr[idx] = faceNormals[j][0]
+      normArr[idx + 1] = faceNormals[j][1]
+      normArr[idx + 2] = faceNormals[j][2]
+    }
+  }
+}
+
+function getCurledHeadPosition(
+  s: number,
+  curlAmount: number,
+  centerMidX: number,
+  centerMidY: number,
+  centerMidZ: number,
+  R: number,
+  frames: CenterFrame[],
+  tMin: number,
+  tMax: number,
+): { px: number; py: number; pz: number; bx: number; bz: number; fnx: number; fny: number; fnz: number } {
+  const t = tMin + (tMax - tMin) * s
+  const flatFrame = getFrameAtT(frames, t)
+
+  const angle = Math.PI + s * Math.PI * 2 * curlAmount
+  const curledPx = centerMidX + R * Math.sin(angle)
+  const curledPy = centerMidY + R * Math.cos(angle)
+  const curledPz = centerMidZ
+
+  const curledTx = Math.cos(angle)
+  const curledTy = -Math.sin(angle)
+  const curledTz = 0
+
+  const px = flatFrame.point.x + (curledPx - flatFrame.point.x) * curlAmount
+  const py = flatFrame.point.y + (curledPy - flatFrame.point.y) * curlAmount
+  const pz = flatFrame.point.z + (curledPz - flatFrame.point.z) * curlAmount
+
+  const tx = flatFrame.tangent.x + (curledTx - flatFrame.tangent.x) * curlAmount
+  const ty = flatFrame.tangent.y + (curledTy - flatFrame.tangent.y) * curlAmount
+  const tz = flatFrame.tangent.z + (curledTz - flatFrame.tangent.z) * curlAmount
+
+  const tlen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1
+  const tnx = tx / tlen, tny = ty / tlen, tnz = tz / tlen
+
+  const bx = 0, bz = 1
+  const nnx = -tny, nny = tnx, nnz = 0
+  const nnLen = Math.sqrt(nnx * nnx + nny * nny + nnz * nnz) || 1
+  const fnx = nnx / nnLen, fny = nny / nnLen, fnz = 0
+
+  return { px, py, pz, bx, bz, fnx, fny, fnz }
+}
+
 function fillRibbonFromFrames(
   frames: CenterFrame[],
   noise: SimplexNoise,
@@ -129,7 +280,7 @@ function fillRibbonFromFrames(
 ) {
   const halfW = MEMBRANE_WIDTH / 2
   const halfH = MEMBRANE_THICKNESS / 2
-  const innerR = halfH * 0.3
+  const innerR = halfH * 0.6
   const outerR = halfH
 
   for (let i = 0; i <= segs; i++) {
@@ -138,7 +289,7 @@ function fillRibbonFromFrames(
     const microWave = Math.sin(time * 0.5 + t * Math.PI * 3) * 0.003
     const microNoise = noise.fbm(point.x * 0.12 + time * 0.04, point.y * 0.12, 0, 2) * 0.008
     const bx = binormal.x, bz = binormal.z
-    const nx = normal.x, nz = normal.z
+    const nx = normal.x, ny = normal.y, nz = normal.z
     const cx = point.x
     const cy = point.y + microWave + microNoise
     const cz = point.z
@@ -153,8 +304,9 @@ function fillRibbonFromFrames(
       [cx + bx * halfW - nx * halfH, cy - outerR, cz + bz * halfW - nz * halfH],
     ]
     const faceNormals = [
-      [nx, 0.3, nz], [-nx, 0.3, -nz], [-nx, -0.3, -nz], [nx, -0.3, nz],
-      [0, 1, 0], [0, -1, 0], [bx, 0, bz], [-bx, 0, -bz],
+      [nx * 0.3, ny * 0.3, nz * 0.3], [nx * 0.3, ny * 0.3, nz * 0.3],
+      [-nx * 0.3, -ny * 0.3, -nz * 0.3], [-nx * 0.3, -ny * 0.3, -nz * 0.3],
+      [0, 1, 0], [0, 1, 0], [0, -1, 0], [0, -1, 0],
     ]
     for (let j = 0; j < VERTS_PER_STEP; j++) {
       const idx = (i * VERTS_PER_STEP + j) * 3
@@ -254,8 +406,46 @@ export default function BilayerMembrane() {
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
+  const scrollRef = useRef(0)
+  const scrollTargetRef = useRef(0)
+
+  useEffect(() => {
+    let ticking = false
+    function onScroll() {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const scrollH = document.documentElement.scrollHeight - window.innerHeight
+        scrollTargetRef.current = scrollH > 0 ? Math.max(0, Math.min(1, window.scrollY / scrollH)) : 0
+        ticking = false
+      })
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
+  const { centerMidX, centerMidY, centerMidZ, centerR } = useMemo(() => {
+    const mid = getFrameAtT(parentFrames, (CENTER_T_MIN + CENTER_T_MAX) / 2)
+    const arcLen = computeArcLength(parentFrames, CENTER_T_MIN, CENTER_T_MAX)
+    const R = arcLen / (Math.PI * 2)
+    return { centerMidX: mid.point.x, centerMidY: mid.point.y, centerMidZ: mid.point.z, centerR: R }
+  }, [parentFrames])
+
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime()
+
+    scrollRef.current += (scrollTargetRef.current - scrollRef.current) * 0.08
+
+    const rawScroll = scrollRef.current
+    let curlAmount = 0
+    let circleDrop = 0
+    if (rawScroll < 0.5) {
+      curlAmount = rawScroll * 2
+    } else {
+      curlAmount = 1
+      circleDrop = (rawScroll - 0.5) * 2 * 1.2
+    }
 
     if (groupRef.current) {
       const idleFloat = Math.sin(time * 0.25) * 0.06 + Math.sin(time * 0.4) * 0.025
@@ -273,16 +463,14 @@ export default function BilayerMembrane() {
       fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, LEFT_SEGS, 0, LEFT_T_MAX)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
-      leftRibbonRef.current.geometry.computeVertexNormals()
     }
 
     if (centerRibbonRef.current) {
       const posAttr = centerRibbonRef.current.geometry.attributes.position as THREE.BufferAttribute
       const normAttr = centerRibbonRef.current.geometry.attributes.normal as THREE.BufferAttribute
-      fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, CENTER_SEGS, CENTER_T_MIN, CENTER_T_MAX)
+      fillCenterCurlRibbon(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, CENTER_SEGS, CENTER_T_MIN, CENTER_T_MAX, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, circleDrop)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
-      centerRibbonRef.current.geometry.computeVertexNormals()
     }
 
     if (rightRibbonRef.current) {
@@ -291,7 +479,6 @@ export default function BilayerMembrane() {
       fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, RIGHT_SEGS, RIGHT_T_MIN, 1.0)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
-      rightRibbonRef.current.geometry.computeVertexNormals()
     }
 
     function updateHeads(
@@ -302,40 +489,72 @@ export default function BilayerMembrane() {
       rows: number,
       tMin: number,
       tMax: number,
+      isCenter: boolean,
     ) {
       if (!topRef || !botRef || !tailsInst) return
       for (let col = 0; col < cols; col++) {
-        const t = tMin + (tMax - tMin) * ((col + 0.5) / cols)
-        const { point, binormal } = getFrameAtT(parentFrames, t)
+        const s = (col + 0.5) / cols
+        let px: number, py: number, pz: number
+        let bx: number, bz: number
+        let hnx = 0, hny = 1, hnz = 0
 
-        const breathe = Math.sin(time * 0.4 + t * Math.PI * 2) * 0.02
-          + Math.sin(time * 0.25 + t * Math.PI * 0.8) * 0.012
+        if (isCenter) {
+          const curled = getCurledHeadPosition(s, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, parentFrames, tMin, tMax)
+          px = curled.px
+          py = curled.py - circleDrop
+          pz = curled.pz
+          bx = curled.bx
+          bz = curled.bz
+          hnx = curled.fnx
+          hny = curled.fny
+          hnz = curled.fnz
+        } else {
+          const t = tMin + (tMax - tMin) * s
+          const { point, binormal, normal } = getFrameAtT(parentFrames, t)
+          px = point.x
+          py = point.y
+          pz = point.z
+          bx = binormal.x
+          bz = binormal.z
+          hnx = normal.x
+          hny = normal.y
+          hnz = normal.z
+        }
+
+        const breathe = Math.sin(time * 0.4 + s * Math.PI * 2) * 0.02
+          + Math.sin(time * 0.25 + s * Math.PI * 0.8) * 0.012
+
+        const headOffset = MEMBRANE_THICKNESS * 0.38
 
         for (let row = 0; row < rows; row++) {
           const rowT = (row / (rows - 1)) - 0.5
-          const offX = binormal.x * rowT * MEMBRANE_WIDTH
-          const offZ = binormal.z * rowT * MEMBRANE_WIDTH
+          const offX = bx * rowT * MEMBRANE_WIDTH
+          const offZ = bz * rowT * MEMBRANE_WIDTH
 
-          const px = point.x + offX
-          const py = point.y + breathe
-          const pz = point.z + offZ
+          const fpx = px + offX
+          const fpy = py + breathe
+          const fpz = pz + offZ
 
-          const jitterX = noise.noise3D(px * 10 + time * 0.12, 0, pz * 10) * 0.006
-          const jitterZ = noise.noise3D(px * 10 + 300, 0, pz * 10 + time * 0.12 + 300) * 0.006
-          const jx = px + jitterX
-          const jz = pz + jitterZ
+          const jitterX = noise.noise3D(fpx * 10 + time * 0.12, 0, fpz * 10) * 0.006
+          const jitterZ = noise.noise3D(fpx * 10 + 300, 0, fpz * 10 + time * 0.12 + 300) * 0.006
+          const jx = fpx + jitterX
+          const jz = fpz + jitterZ
 
           const idx = col * rows + row
 
-          dummy.position.set(jx, py + MEMBRANE_THICKNESS * 0.38, jz)
+          dummy.position.set(jx + hnx * headOffset, fpy + hny * headOffset, jz + hnz * headOffset)
           dummy.updateMatrix()
           topRef.setMatrixAt(idx, dummy.matrix)
 
-          dummy.position.set(jx, py - MEMBRANE_THICKNESS * 0.38, jz)
+          dummy.position.set(jx - hnx * headOffset, fpy - hny * headOffset, jz - hnz * headOffset)
           dummy.updateMatrix()
           botRef.setMatrixAt(idx, dummy.matrix)
 
-          dummy.position.set(jx, py, jz)
+          dummy.position.set(jx, fpy, jz)
+          dummy.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(hnx, hny, hnz)
+          )
           dummy.updateMatrix()
           tailsInst.setMatrixAt(idx, dummy.matrix)
         }
@@ -345,21 +564,21 @@ export default function BilayerMembrane() {
       tailsInst.instanceMatrix.needsUpdate = true
     }
 
-    updateHeads(leftTopHeadsRef.current, leftBotHeadsRef.current, leftTailsRef.current, LEFT_COLS, MAIN_ROWS, 0, LEFT_T_MAX)
-    updateHeads(centerTopHeadsRef.current, centerBotHeadsRef.current, centerTailsRef.current, CENTER_COLS, MAIN_ROWS, CENTER_T_MIN, CENTER_T_MAX)
-    updateHeads(rightTopHeadsRef.current, rightBotHeadsRef.current, rightTailsRef.current, RIGHT_COLS, MAIN_ROWS, RIGHT_T_MIN, 1.0)
+    updateHeads(leftTopHeadsRef.current, leftBotHeadsRef.current, leftTailsRef.current, LEFT_COLS, MAIN_ROWS, 0, LEFT_T_MAX, false)
+    updateHeads(centerTopHeadsRef.current, centerBotHeadsRef.current, centerTailsRef.current, CENTER_COLS, MAIN_ROWS, CENTER_T_MIN, CENTER_T_MAX, true)
+    updateHeads(rightTopHeadsRef.current, rightBotHeadsRef.current, rightTailsRef.current, RIGHT_COLS, MAIN_ROWS, RIGHT_T_MIN, 1.0, false)
   })
 
   return (
-    <group ref={groupRef} position={[0, 0.15, -2.5]} rotation={[0.15, 0, 0.02]}>
+    <group ref={groupRef} position={[0, 0.15, -2.5]} rotation={[0.12, 0, 0.01]}>
       <mesh ref={leftRibbonRef} geometry={leftRibbonGeo} frustumCulled={false}>
-        <meshPhongMaterial color={COLORS.coreRibbon} shininess={120} specular={COLORS.coreRibbonSpec} transparent opacity={0.8} side={THREE.DoubleSide} depthWrite={false} />
+        <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh ref={centerRibbonRef} geometry={centerRibbonGeo} frustumCulled={false}>
-        <meshPhongMaterial color={COLORS.coreRibbon} shininess={120} specular={COLORS.coreRibbonSpec} transparent opacity={0.8} side={THREE.DoubleSide} depthWrite={false} />
+        <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh ref={rightRibbonRef} geometry={rightRibbonGeo} frustumCulled={false}>
-        <meshPhongMaterial color={COLORS.coreRibbon} shininess={120} specular={COLORS.coreRibbonSpec} transparent opacity={0.8} side={THREE.DoubleSide} depthWrite={false} />
+        <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
 
       <instancedMesh ref={leftTopHeadsRef} args={[undefined, undefined, LEFT_COLS * MAIN_ROWS]} frustumCulled={false}>
@@ -372,7 +591,7 @@ export default function BilayerMembrane() {
       </instancedMesh>
       <instancedMesh ref={leftTailsRef} args={[undefined, undefined, LEFT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#8a9060")} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} />
       </instancedMesh>
 
       <instancedMesh ref={centerTopHeadsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
@@ -385,7 +604,7 @@ export default function BilayerMembrane() {
       </instancedMesh>
       <instancedMesh ref={centerTailsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#8a9060")} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} />
       </instancedMesh>
 
       <instancedMesh ref={rightTopHeadsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
@@ -398,7 +617,7 @@ export default function BilayerMembrane() {
       </instancedMesh>
       <instancedMesh ref={rightTailsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#8a9060")} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} />
       </instancedMesh>
     </group>
   )

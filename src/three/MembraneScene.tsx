@@ -22,13 +22,13 @@ class WebGLErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 }
 
 function getCameraConfig() {
-  if (typeof window === "undefined") return { fov: 36, posZ: 7.0, posY: 0.5, groupScale: 1.0, dpr: [1, 1.5] as [number, number] }
+  if (typeof window === "undefined") return { fov: 36, posZ: 7.0, posY: 0.8, groupScale: 1.0, dpr: [1, 1.5] as [number, number] }
   const w = window.innerWidth
-  if (w < 400) return { fov: 62, posZ: 4.5, posY: 0.15, groupScale: 0.48, dpr: [1, 1] as [number, number] }
-  if (w < 640) return { fov: 56, posZ: 5.0, posY: 0.2, groupScale: 0.55, dpr: [1, 1] as [number, number] }
-  if (w < 768) return { fov: 50, posZ: 5.5, posY: 0.3, groupScale: 0.65, dpr: [1, 1.2] as [number, number] }
-  if (w < 1024) return { fov: 42, posZ: 6.2, posY: 0.4, groupScale: 0.82, dpr: [1, 1.5] as [number, number] }
-  return { fov: 36, posZ: 7.0, posY: 0.5, groupScale: 1.0, dpr: [1, 1.5] as [number, number] }
+  if (w < 400) return { fov: 62, posZ: 4.5, posY: 0.35, groupScale: 0.48, dpr: [1, 1] as [number, number] }
+  if (w < 640) return { fov: 56, posZ: 5.0, posY: 0.4, groupScale: 0.55, dpr: [1, 1] as [number, number] }
+  if (w < 768) return { fov: 50, posZ: 5.5, posY: 0.5, groupScale: 0.65, dpr: [1, 1.2] as [number, number] }
+  if (w < 1024) return { fov: 42, posZ: 6.2, posY: 0.65, groupScale: 0.82, dpr: [1, 1.5] as [number, number] }
+  return { fov: 36, posZ: 7.0, posY: 0.8, groupScale: 1.0, dpr: [1, 1.5] as [number, number] }
 }
 
 function ResponsiveCamera() {
@@ -59,14 +59,15 @@ function Scene() {
   return (
     <>
       <ResponsiveCamera />
-      <ambientLight intensity={0.4} color="#e8e0d0" />
-      <directionalLight position={[5, 8, 5]} intensity={2.0} color="#ffffff" />
-      <directionalLight position={[-4, 5, 3]} intensity={0.8} color="#f0e8d0" />
-      <pointLight position={[0, 3, 4]} intensity={1.0} color="#f0e0a0" distance={18} decay={2} />
-      <pointLight position={[-6, 2, 2]} intensity={0.5} color="#e8d8a0" distance={14} decay={2} />
-      <pointLight position={[6, 2, 2]} intensity={0.5} color="#e8d8a0" distance={14} decay={2} />
-      <pointLight position={[0, 0, 3]} intensity={1.2} color="#f0e0b0" distance={12} decay={2} />
-      <pointLight position={[0, 0, -2]} intensity={0.5} color="#d8c888" distance={10} decay={2} />
+      <ambientLight intensity={0.45} color="#f8f4f0" />
+      <directionalLight position={[5, 8, 5]} intensity={1.5} color="#f8f4f0" />
+      <directionalLight position={[-4, 5, 3]} intensity={0.8} color="#f8f4f0" />
+      <directionalLight position={[0, 10, 2]} intensity={1.8} color="#ffe066" />
+      <pointLight position={[0, 3, 4]} intensity={1.0} color="#f8f4f0" distance={18} decay={2} />
+      <pointLight position={[-6, 2, 2]} intensity={0.5} color="#f8f4f0" distance={14} decay={2} />
+      <pointLight position={[6, 2, 2]} intensity={0.5} color="#f8f4f0" distance={14} decay={2} />
+      <pointLight position={[0, 0, 3]} intensity={1.2} color="#f8f4f0" distance={12} decay={2} />
+      <pointLight position={[0, 0, -2]} intensity={0.4} color="#f8f4f0" distance={10} decay={2} />
 
       <BilayerMembrane />
       <PostProcessing isMobile={typeof window !== "undefined" && window.innerWidth < 768} />
@@ -125,8 +126,8 @@ export default function MembraneScene() {
         }}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0)
-          gl.toneMapping = THREE.ACESFilmicToneMapping
-          gl.toneMappingExposure = 1.3
+        gl.toneMapping = THREE.ACESFilmicToneMapping
+        gl.toneMappingExposure = 1.0
         }}
       >
         <Scene />
