@@ -183,8 +183,8 @@ function fillRibbonFromFrames(
     const t = i / CURVE_SEGS
     const { point, binormal, normal } = getFrameAtT(frames, t)
 
-    const microWave = Math.sin(time * 1.4 + t * Math.PI * 3) * 0.006 * breathingAmp
-    const microNoise = noise.fbm(point.x * 0.12 + time * 0.1, point.y * 0.12, 0, 2) * 0.02 * breathingAmp
+    const microWave = Math.sin(time * 0.5 + t * Math.PI * 3) * 0.005 * breathingAmp
+    const microNoise = noise.fbm(point.x * 0.12 + time * 0.04, point.y * 0.12, 0, 2) * 0.015 * breathingAmp
     const bx = binormal.x
     const bz = binormal.z
     const nx = normal.x
@@ -357,9 +357,9 @@ function bufferGeoToPart(geo: THREE.BufferGeometry): { positions: number[]; norm
 function buildDNAHelix(
   length: number, radius: number, turns: number
 ): THREE.BufferGeometry {
-  const TUBE_R = 0.006
-  const RUNG_R = 0.004
-  const RUNG_COUNT = 40
+  const TUBE_R = 0.012
+  const RUNG_R = 0.008
+  const RUNG_COUNT = 30
 
   class HelixPath extends THREE.Curve<THREE.Vector3> {
     r: number; h: number; n: number; o: number
@@ -432,19 +432,19 @@ function buildProteinBlob(seed: number): THREE.BufferGeometry {
   const count = 3 + Math.floor(pseudoRand(seed) * 2)
   const parts: { positions: number[]; normals: number[]; indices: number[] }[] = []
   for (let i = 0; i < count; i++) {
-    const r = 0.010 + pseudoRand(seed * 7 + i * 13) * 0.008
-    const ox = (pseudoRand(seed * 11 + i * 17) - 0.5) * 0.03
-    const oy = (pseudoRand(seed * 13 + i * 19) - 0.5) * 0.03
-    const oz = (pseudoRand(seed * 17 + i * 23) - 0.5) * 0.03
+    const r = 0.02 + pseudoRand(seed * 7 + i * 13) * 0.015
+    const ox = (pseudoRand(seed * 11 + i * 17) - 0.5) * 0.035
+    const oy = (pseudoRand(seed * 13 + i * 19) - 0.5) * 0.035
+    const oz = (pseudoRand(seed * 17 + i * 23) - 0.5) * 0.035
     parts.push(buildSphereVerts(ox, oy, oz, r, 8, 6))
   }
   return mergeBufferGeos(parts)
 }
 
 const EXO_DNA_GEOMS = [
-  (() => { const g = buildDNAHelix(0.35, 0.055, 3.5); return g })(),
-  (() => { const g = buildDNAHelix(0.30, 0.048, 4.0); return g })(),
-  (() => { const g = buildDNAHelix(0.25, 0.042, 3.0); return g })(),
+  (() => { const g = buildDNAHelix(0.42, 0.08, 3.0); return g })(),
+  (() => { const g = buildDNAHelix(0.36, 0.07, 3.5); return g })(),
+  (() => { const g = buildDNAHelix(0.30, 0.06, 2.5); return g })(),
 ]
 
 function buildTexturedSphere(
@@ -619,11 +619,11 @@ export default function BilayerMembrane() {
       const circleFloat = Math.min(1, ringPhase) * (1 - spherePhase)
       const stripIdle = (1 - ringPhase) * (1 - spherePhase)
       const animAmount = Math.max(stripIdle * 0.8, circleFloat * 0.8, spherePhase * 0.7)
-      const idleFloat = Math.sin(time * 0.7) * 0.18 * animAmount
-        + Math.sin(time * 1.2) * 0.08 * animAmount
-      const idleSway = Math.cos(time * 0.5) * 0.1 * animAmount
-        + Math.sin(time * 0.9) * 0.05 * animAmount
-      const idleTilt = Math.sin(time * 0.6) * 0.015 * animAmount
+      const idleFloat = Math.sin(time * 0.25) * 0.15 * animAmount
+        + Math.sin(time * 0.4) * 0.06 * animAmount
+      const idleSway = Math.cos(time * 0.18) * 0.08 * animAmount
+        + Math.sin(time * 0.3) * 0.04 * animAmount
+      const idleTilt = Math.sin(time * 0.2) * 0.012 * animAmount
       groupRef.current.position.y = 0.15 + idleFloat
       groupRef.current.position.x = idleSway
       groupRef.current.rotation.z = idleTilt
@@ -652,8 +652,8 @@ export default function BilayerMembrane() {
         const t = (col + 0.5) / COLS
         const { point, binormal } = getFrameAtT(frames, t)
 
-        const breathe = Math.sin(time * 1.0 + t * Math.PI * 2) * 0.025 * breathingAmp
-          + Math.sin(time * 0.6 + t * Math.PI * 0.8) * 0.015 * breathingAmp
+        const breathe = Math.sin(time * 0.4 + t * Math.PI * 2) * 0.02 * breathingAmp
+          + Math.sin(time * 0.25 + t * Math.PI * 0.8) * 0.012 * breathingAmp
 
         for (let row = 0; row < ROWS; row++) {
           const rowT = (row / (ROWS - 1)) - 0.5
@@ -664,8 +664,8 @@ export default function BilayerMembrane() {
           const py = point.y + breathe
           const pz = point.z + offZ
 
-          const jitterX = noise.noise3D(px * 10 + time * 0.3, 0, pz * 10) * 0.008 * breathingAmp * (1 - spherePhase)
-          const jitterZ = noise.noise3D(px * 10 + 300, 0, pz * 10 + time * 0.3 + 300) * 0.008 * breathingAmp * (1 - spherePhase)
+          const jitterX = noise.noise3D(px * 10 + time * 0.12, 0, pz * 10) * 0.006 * breathingAmp * (1 - spherePhase)
+          const jitterZ = noise.noise3D(px * 10 + 300, 0, pz * 10 + time * 0.12 + 300) * 0.006 * breathingAmp * (1 - spherePhase)
           const jx = px + jitterX
           const jz = pz + jitterZ
 
@@ -694,8 +694,8 @@ export default function BilayerMembrane() {
       if (!group) return
       const { point, binormal } = getFrameAtT(frames, pt)
       const latOff = proteinLateralOffsets[i]
-      const sway = Math.sin(time * 1.4 + i * 1.8) * 0.015 * breathingAmp
-      const microBob = Math.sin(time * 1.0 + i * 2.1) * 0.01 * breathingAmp
+      const sway = Math.sin(time * 0.5 + i * 1.8) * 0.012 * breathingAmp
+      const microBob = Math.sin(time * 0.35 + i * 2.1) * 0.008 * breathingAmp
       group.position.set(
         point.x + binormal.x * latOff + sway,
         point.y + MEMBRANE_THICKNESS * 0.38 + 0.02 + microBob,
@@ -732,31 +732,27 @@ export default function BilayerMembrane() {
       group.scale.setScalar(proteinScales[i] * ringFade)
     })
 
-    // ── Hollow Exosome (Sphere + Rim) — continuous fast idle ──
+    // ── Hollow Exosome (Sphere + Rim) — gentle continuous idle ──
     if (sphereRef.current) {
       const mat = sphereRef.current.material as THREE.MeshPhongMaterial
       mat.opacity = spherePhase * 0.12
       mat.depthWrite = false
       sphereRef.current.visible = spherePhase > 0.001
 
-      const bx = Math.sin(time * 0.8) * 0.25
-        + Math.sin(time * 0.35) * 0.12
-        + Math.cos(time * 1.1) * 0.06
-      const by = Math.cos(time * 0.6) * 0.3
-        + Math.sin(time * 0.9) * 0.15
-        + Math.cos(time * 0.45) * 0.08
-      const bz = Math.sin(time * 0.7) * 0.18
-        + Math.cos(time * 0.5) * 0.1
+      const bx = Math.sin(time * 0.25) * 0.2
+        + Math.sin(time * 0.12) * 0.1
+      const by = Math.cos(time * 0.2) * 0.25
+        + Math.sin(time * 0.3) * 0.12
+      const bz = Math.sin(time * 0.22) * 0.15
       sphereRef.current.position.set(bx, 0.15 + by, bz)
 
-      const sc = 1 + Math.sin(time * 0.9) * 0.05
-        + Math.sin(time * 0.55) * 0.03
-        + Math.cos(time * 1.2) * 0.02
+      const sc = 1 + Math.sin(time * 0.3) * 0.04
+        + Math.sin(time * 0.18) * 0.02
       sphereRef.current.scale.setScalar(sc)
 
-      sphereRef.current.rotation.y = time * 0.25
-      sphereRef.current.rotation.x = Math.sin(time * 0.4) * 0.15
-      sphereRef.current.rotation.z = Math.cos(time * 0.3) * 0.08
+      sphereRef.current.rotation.y = time * 0.08
+      sphereRef.current.rotation.x = Math.sin(time * 0.12) * 0.1
+      sphereRef.current.rotation.z = Math.cos(time * 0.1) * 0.05
 
       const geo = sphereRef.current.geometry as THREE.SphereGeometry
       const posAttr = geo.attributes.position as THREE.BufferAttribute
@@ -770,9 +766,9 @@ export default function BilayerMembrane() {
         const oz = orig[i * 3 + 2]
         const len = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1
         const nx = ox / len, ny = oy / len, nz = oz / len
-        const w1 = noise.noise3D(ox * 0.4 + time * 0.2, oy * 0.4 + time * 0.12, oz * 0.4 + time * 0.16) * 0.15
-        const w2 = noise.noise3D(ox * 0.9 + time * 0.35, oy * 0.9 - time * 0.25, oz * 0.9 + time * 0.3) * 0.08
-        const w3 = noise.noise3D(ox * 1.6 + time * 0.55, oy * 1.6 + time * 0.4, oz * 1.6 - time * 0.35) * 0.04
+        const w1 = noise.noise3D(ox * 0.4 + time * 0.06, oy * 0.4 + time * 0.04, oz * 0.4 + time * 0.05) * 0.15
+        const w2 = noise.noise3D(ox * 0.9 + time * 0.1, oy * 0.9 - time * 0.08, oz * 0.9 + time * 0.09) * 0.08
+        const w3 = noise.noise3D(ox * 1.6 + time * 0.15, oy * 1.6 + time * 0.12, oz * 1.6 - time * 0.1) * 0.04
         const disp = (w1 + w2 + w3) * spherePhase
         posAttr.setXYZ(i, ox + nx * disp, oy + ny * disp, oz + nz * disp)
       }
@@ -786,27 +782,23 @@ export default function BilayerMembrane() {
       mat.depthWrite = false
       rimRef.current.visible = spherePhase > 0.001
 
-      const bx = Math.sin(time * 0.8) * 0.25
-        + Math.sin(time * 0.35) * 0.12
-        + Math.cos(time * 1.1) * 0.06
-      const by = Math.cos(time * 0.6) * 0.3
-        + Math.sin(time * 0.9) * 0.15
-        + Math.cos(time * 0.45) * 0.08
-      const bz = Math.sin(time * 0.7) * 0.18
-        + Math.cos(time * 0.5) * 0.1
+      const bx = Math.sin(time * 0.25) * 0.2
+        + Math.sin(time * 0.12) * 0.1
+      const by = Math.cos(time * 0.2) * 0.25
+        + Math.sin(time * 0.3) * 0.12
+      const bz = Math.sin(time * 0.22) * 0.15
       rimRef.current.position.set(bx, 0.15 + by, bz)
 
-      const sc = 1 + Math.sin(time * 0.9) * 0.05
-        + Math.sin(time * 0.55) * 0.03
-        + Math.cos(time * 1.2) * 0.02
+      const sc = 1 + Math.sin(time * 0.3) * 0.04
+        + Math.sin(time * 0.18) * 0.02
       rimRef.current.scale.setScalar(sc)
 
-      rimRef.current.rotation.y = time * 0.25
-      rimRef.current.rotation.x = Math.sin(time * 0.4) * 0.15
-      rimRef.current.rotation.z = Math.cos(time * 0.3) * 0.08
+      rimRef.current.rotation.y = time * 0.08
+      rimRef.current.rotation.x = Math.sin(time * 0.12) * 0.1
+      rimRef.current.rotation.z = Math.cos(time * 0.1) * 0.05
     }
 
-    // ── Small Exosomes — enter then float freely inside ──
+    // ── Small Exosomes — enter then float gently inside ──
     for (let i = 0; i < 4; i++) {
       const exoGroup = smallExoRefs.current[i]
       if (!exoGroup) continue
@@ -823,14 +815,14 @@ export default function BilayerMembrane() {
       const travelZ = sZ + (eZ - sZ) * approachCurve
 
       const settled = et > 0.95 ? 1 : 0
-      const floatX = settled * (Math.sin(time * 0.7 + i * 2.3) * 0.12 + Math.sin(time * 1.1 + i * 1.5) * 0.06)
-      const floatY = settled * (Math.cos(time * 0.5 + i * 1.8) * 0.1 + Math.sin(time * 0.85 + i * 2.0) * 0.07)
-      const floatZ = settled * (Math.sin(time * 0.6 + i * 2.5) * 0.08 + Math.cos(time * 0.9 + i * 1.2) * 0.05)
+      const floatX = settled * (Math.sin(time * 0.2 + i * 2.3) * 0.08 + Math.sin(time * 0.35 + i * 1.5) * 0.04)
+      const floatY = settled * (Math.cos(time * 0.15 + i * 1.8) * 0.07 + Math.sin(time * 0.25 + i * 2.0) * 0.04)
+      const floatZ = settled * (Math.sin(time * 0.18 + i * 2.5) * 0.05 + Math.cos(time * 0.28 + i * 1.2) * 0.03)
 
       exoGroup.position.set(travelX + floatX, travelY + floatY, travelZ + floatZ)
-      exoGroup.rotation.y = time * 0.6 + i * 1.2
-      exoGroup.rotation.x = Math.sin(time * 0.4 + i * 0.9) * 0.2
-      exoGroup.rotation.z = Math.cos(time * 0.5 + i * 1.1) * 0.15
+      exoGroup.rotation.y = time * 0.15 + i * 1.2
+      exoGroup.rotation.x = Math.sin(time * 0.12 + i * 0.9) * 0.12
+      exoGroup.rotation.z = Math.cos(time * 0.14 + i * 1.1) * 0.08
 
       const fadeIn = Math.min(1, localT / 0.08)
       const scaleVal = fadeIn * 1.2
