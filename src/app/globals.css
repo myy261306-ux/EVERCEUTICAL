@@ -489,6 +489,11 @@ section[id] {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
   }
+
+  /* Dynamic viewport height for mobile browsers */
+  body {
+    min-height: 100dvh;
+  }
   
   section[id] {
     scroll-margin-top: 4rem;
@@ -503,6 +508,12 @@ section[id] {
   /* Reduce animation complexity on mobile */
   .glass-card:hover {
     transform: none;
+  }
+
+  /* Ensure canvas fills mobile viewport properly */
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 
