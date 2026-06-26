@@ -169,7 +169,7 @@ function fillCenterCurlRibbon(
 
     const angle = Math.PI + s * Math.PI * 2 * curlAmount
     const curledPx = centerMidX + R * Math.sin(angle)
-    const curledPy = centerMidY + R * Math.cos(angle)
+    const curledPy = centerMidY + R * Math.cos(angle) - R * 0.25
     const curledPz = centerMidZ
 
     const curledTx = Math.cos(angle)
@@ -242,7 +242,7 @@ function getCurledHeadPosition(
 
   const angle = Math.PI + s * Math.PI * 2 * curlAmount
   const curledPx = centerMidX + R * Math.sin(angle)
-  const curledPy = centerMidY + R * Math.cos(angle)
+  const curledPy = centerMidY + R * Math.cos(angle) - R * 0.25
   const curledPz = centerMidZ
 
   const curledTx = Math.cos(angle)
@@ -449,12 +449,14 @@ export default function BilayerMembrane() {
     const rawScroll = scrollRef.current
     let curlAmount = 0
     let circleDrop = 0
-    if (rawScroll < 0.20) {
-      curlAmount = rawScroll / 0.20
+    if (rawScroll < 0.18) {
+      curlAmount = rawScroll / 0.18
     } else {
       curlAmount = 1
-      circleDrop = (rawScroll - 0.20) / 0.80 * 1.2
+      circleDrop = Math.min(0.3, (rawScroll - 0.18) / 0.20 * 0.3)
     }
+
+    const flatUpOffset = Math.max(0, Math.min(4, (rawScroll - 0.20) / 0.22 * 4))
 
     if (groupRef.current) {
       const idleFloat = Math.sin(time * 0.25) * 0.06 + Math.sin(time * 0.4) * 0.025
@@ -469,16 +471,16 @@ export default function BilayerMembrane() {
     const bLeftFlat = getFrameAtT(parentFrames, CENTER_T_MIN).point
     const bRightFlat = getFrameAtT(parentFrames, CENTER_T_MAX).point
     const bLeftCurledX = centerMidX + centerR * Math.sin(Math.PI)
-    const bLeftCurledY = centerMidY + centerR * Math.cos(Math.PI)
+    const bLeftCurledY = centerMidY + centerR * Math.cos(Math.PI) - centerR * 0.25
     const bRightAngle = Math.PI + Math.PI * 2 * curlAmount
     const bRightCurledX = centerMidX + centerR * Math.sin(bRightAngle)
-    const bRightCurledY = centerMidY + centerR * Math.cos(bRightAngle)
+    const bRightCurledY = centerMidY + centerR * Math.cos(bRightAngle) - centerR * 0.25
     const leftEdgeOffX = (bLeftCurledX - bLeftFlat.x) * curlAmount
-    const leftEdgeOffY = (bLeftCurledY - bLeftFlat.y) * curlAmount
-    const leftEdgeOffZ = (centerMidZ - bLeftFlat.z) * curlAmount
+    const leftEdgeOffY = 0
+    const leftEdgeOffZ = 0
     const rightEdgeOffX = (bRightCurledX - bRightFlat.x) * curlAmount
-    const rightEdgeOffY = (bRightCurledY - bRightFlat.y) * curlAmount
-    const rightEdgeOffZ = (centerMidZ - bRightFlat.z) * curlAmount
+    const rightEdgeOffY = 0
+    const rightEdgeOffZ = 0
 
     if (leftRibbonRef.current) {
       const posAttr = leftRibbonRef.current.geometry.attributes.position as THREE.BufferAttribute
@@ -486,6 +488,8 @@ export default function BilayerMembrane() {
       fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, LEFT_SEGS, 0, LEFT_T_MAX, leftEdgeOffX, leftEdgeOffY, leftEdgeOffZ, true)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
+      leftRibbonRef.current.position.y = flatUpOffset
+      ;(leftRibbonRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 0.45 * (1 - flatUpOffset / 3))
     }
 
     if (centerRibbonRef.current) {
@@ -502,6 +506,8 @@ export default function BilayerMembrane() {
       fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, RIGHT_SEGS, RIGHT_T_MIN, 1.0, rightEdgeOffX, rightEdgeOffY, rightEdgeOffZ, false)
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
+      rightRibbonRef.current.position.y = flatUpOffset
+      ;(rightRibbonRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 0.45 * (1 - flatUpOffset / 3))
     }
 
     function updateHeads(
@@ -599,6 +605,20 @@ export default function BilayerMembrane() {
     updateHeads(leftTopHeadsRef.current, leftBotHeadsRef.current, leftTailsRef.current, LEFT_COLS, MAIN_ROWS, 0, LEFT_T_MAX, false, leftEdgeOffX, leftEdgeOffY, leftEdgeOffZ, true)
     updateHeads(centerTopHeadsRef.current, centerBotHeadsRef.current, centerTailsRef.current, CENTER_COLS, MAIN_ROWS, CENTER_T_MIN, CENTER_T_MAX, true)
     updateHeads(rightTopHeadsRef.current, rightBotHeadsRef.current, rightTailsRef.current, RIGHT_COLS, MAIN_ROWS, RIGHT_T_MIN, 1.0, false, rightEdgeOffX, rightEdgeOffY, rightEdgeOffZ, false)
+
+    if (leftTopHeadsRef.current) leftTopHeadsRef.current.position.y = flatUpOffset
+    if (leftBotHeadsRef.current) leftBotHeadsRef.current.position.y = flatUpOffset
+    if (leftTailsRef.current) leftTailsRef.current.position.y = flatUpOffset
+    if (leftTopHeadsRef.current) (leftTopHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
+    if (leftBotHeadsRef.current) (leftBotHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
+    if (leftTailsRef.current) (leftTailsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
+
+    if (rightTopHeadsRef.current) rightTopHeadsRef.current.position.y = flatUpOffset
+    if (rightBotHeadsRef.current) rightBotHeadsRef.current.position.y = flatUpOffset
+    if (rightTailsRef.current) rightTailsRef.current.position.y = flatUpOffset
+    if (rightTopHeadsRef.current) (rightTopHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
+    if (rightBotHeadsRef.current) (rightBotHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
+    if (rightTailsRef.current) (rightTailsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
   })
 
   return (
@@ -615,15 +635,15 @@ export default function BilayerMembrane() {
 
       <instancedMesh ref={leftTopHeadsRef} args={[undefined, undefined, LEFT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS, 7, 5]} />
-        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} />
+        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} transparent depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={leftBotHeadsRef} args={[undefined, undefined, LEFT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS * 0.9, 6, 4]} />
-        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} />
+        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} transparent depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={leftTailsRef} args={[undefined, undefined, LEFT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} transparent depthWrite={false} />
       </instancedMesh>
 
       <instancedMesh ref={centerTopHeadsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
@@ -641,15 +661,15 @@ export default function BilayerMembrane() {
 
       <instancedMesh ref={rightTopHeadsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS, 7, 5]} />
-        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} />
+        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} transparent depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={rightBotHeadsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS * 0.9, 6, 4]} />
-        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} />
+        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} transparent depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={rightTailsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} transparent depthWrite={false} />
       </instancedMesh>
     </group>
   )
