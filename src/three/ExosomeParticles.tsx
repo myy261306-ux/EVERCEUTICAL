@@ -35,6 +35,8 @@ const COLORS = {
   tails: new THREE.Color("#6a5c38"),
   coreRibbon: new THREE.Color("#8a7850"),
   coreRibbonSpec: new THREE.Color("#a89870"),
+  exosome: new THREE.Color("#5ecfc0"),
+  exosomeSpec: new THREE.Color("#b0fff0"),
 }
 
 const SAMPLE_N = 200
@@ -383,6 +385,11 @@ export default function BilayerMembrane() {
   const rightBotHeadsRef = useRef<THREE.InstancedMesh>(null)
   const rightTailsRef = useRef<THREE.InstancedMesh>(null)
 
+  const exosomeRef = useRef<THREE.Mesh>(null)
+  const exosomeGeoRef = useRef<THREE.SphereGeometry>(null)
+
+  const exoClipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(-1, 0, 0), -10), [])
+
   const groupScale = useRef(1)
   useEffect(() => {
     function updateScale() {
@@ -453,10 +460,12 @@ export default function BilayerMembrane() {
       curlAmount = rawScroll / 0.18
     } else {
       curlAmount = 1
-      circleDrop = Math.min(0.3, (rawScroll - 0.18) / 0.20 * 0.3)
+      circleDrop = Math.min(0.3, (rawScroll - 0.18) / 0.10 * 0.3)
     }
 
-    const flatUpOffset = Math.max(0, Math.min(4, (rawScroll - 0.20) / 0.22 * 4))
+    const flatUpOffset = Math.max(0, Math.min(4, (rawScroll - 0.18) / 0.10 * 4))
+
+    const exoConversion = Math.max(0, Math.min(1, (rawScroll - 0.28) / 0.10))
 
     if (groupRef.current) {
       const idleFloat = Math.sin(time * 0.25) * 0.06 + Math.sin(time * 0.4) * 0.025
@@ -495,7 +504,11 @@ export default function BilayerMembrane() {
     if (centerRibbonRef.current) {
       const posAttr = centerRibbonRef.current.geometry.attributes.position as THREE.BufferAttribute
       const normAttr = centerRibbonRef.current.geometry.attributes.normal as THREE.BufferAttribute
-      fillCenterCurlRibbon(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, CENTER_SEGS, CENTER_T_MIN, CENTER_T_MAX, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, circleDrop)
+      if (curlAmount > 0.01) {
+        fillCenterCurlRibbon(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, CENTER_SEGS, CENTER_T_MIN, CENTER_T_MAX, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, circleDrop)
+      } else {
+        fillRibbonFromFrames(parentFrames, noise, time, posAttr.array as Float32Array, normAttr.array as Float32Array, CENTER_SEGS, CENTER_T_MIN, CENTER_T_MAX, 0, 0, 0, true)
+      }
       posAttr.needsUpdate = true
       normAttr.needsUpdate = true
     }
@@ -531,7 +544,7 @@ export default function BilayerMembrane() {
         let bx: number, bz: number
         let hnx = 0, hny = 1, hnz = 0
 
-        if (isCenter) {
+        if (isCenter && curlAmount >= 0.01) {
           const curled = getCurledHeadPosition(s, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, parentFrames, tMin, tMax)
           px = curled.px
           py = curled.py - circleDrop
@@ -619,6 +632,93 @@ export default function BilayerMembrane() {
     if (rightTopHeadsRef.current) (rightTopHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
     if (rightBotHeadsRef.current) (rightBotHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
     if (rightTailsRef.current) (rightTailsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
+
+    const circleAlive = curlAmount >= 1
+    const memFade = 1 - exoConversion
+
+    const cBreatheX = circleAlive ? Math.sin(time * 0.6) * 0.04 : 0
+    const cBreatheY = circleAlive ? Math.cos(time * 0.45) * 0.03 : 0
+    const cPulse = circleAlive ? 1 + Math.sin(time * 0.8) * 0.02 : 1
+    const cRotateZ = circleAlive ? Math.sin(time * 0.35) * 0.03 : 0
+    const cRotateX = circleAlive ? Math.cos(time * 0.28) * 0.015 : 0
+
+    if (centerRibbonRef.current) {
+      centerRibbonRef.current.position.x = cBreatheX
+      centerRibbonRef.current.position.y = -circleDrop + cBreatheY
+      centerRibbonRef.current.scale.setScalar(cPulse)
+      centerRibbonRef.current.rotation.z = cRotateZ
+      centerRibbonRef.current.rotation.x = cRotateX
+      const mat = centerRibbonRef.current.material as THREE.MeshPhongMaterial
+      mat.opacity = 0.45 * Math.max(0, memFade)
+      mat.transparent = true
+    }
+
+    if (centerTopHeadsRef.current) {
+      centerTopHeadsRef.current.position.x = cBreatheX
+      centerTopHeadsRef.current.position.y = -circleDrop + cBreatheY
+      centerTopHeadsRef.current.scale.setScalar(cPulse)
+      centerTopHeadsRef.current.rotation.z = cRotateZ
+      centerTopHeadsRef.current.rotation.x = cRotateX
+      ;(centerTopHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, memFade)
+    }
+    if (centerBotHeadsRef.current) {
+      centerBotHeadsRef.current.position.x = cBreatheX
+      centerBotHeadsRef.current.position.y = -circleDrop + cBreatheY
+      centerBotHeadsRef.current.scale.setScalar(cPulse)
+      centerBotHeadsRef.current.rotation.z = cRotateZ
+      centerBotHeadsRef.current.rotation.x = cRotateX
+      ;(centerBotHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, memFade)
+    }
+    if (centerTailsRef.current) {
+      centerTailsRef.current.position.x = cBreatheX
+      centerTailsRef.current.position.y = -circleDrop + cBreatheY
+      centerTailsRef.current.scale.setScalar(cPulse)
+      centerTailsRef.current.rotation.z = cRotateZ
+      centerTailsRef.current.rotation.x = cRotateX
+      ;(centerTailsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, memFade)
+    }
+
+    if (exosomeRef.current && exosomeGeoRef.current) {
+      const shouldShow = exoConversion > 0.001
+      exosomeRef.current.visible = shouldShow
+      if (shouldShow) {
+        const exoGrow = centerR * (1.35 + exoConversion * 0.25)
+        exosomeRef.current.scale.setScalar(exoGrow)
+        exosomeRef.current.position.set(
+          centerMidX + Math.sin(time * 0.4) * 0.03,
+          centerMidY - centerR * 0.25 - circleDrop + Math.cos(time * 0.35) * 0.025,
+          centerMidZ + Math.sin(time * 0.3) * 0.02
+        )
+        exosomeRef.current.rotation.y = time * 0.15
+        exosomeRef.current.rotation.x = Math.sin(time * 0.25) * 0.08
+        exosomeRef.current.rotation.z = Math.cos(time * 0.2) * 0.06
+        const mat = exosomeRef.current.material as THREE.MeshPhongMaterial
+        mat.opacity = exoConversion * 0.28
+        mat.transparent = true
+
+        const wipeExtent = exoGrow * 1.5
+        const smoothWipe = exoConversion * exoConversion * (3 - 2 * exoConversion)
+        exoClipPlane.constant = (centerMidX - wipeExtent) + smoothWipe * wipeExtent * 2
+
+        const posAttr = exosomeGeoRef.current.attributes.position as THREE.BufferAttribute
+        const arr = posAttr.array as Float32Array
+        for (let i = 0; i < posAttr.count; i++) {
+          const ox = arr[i * 3]
+          const oy = arr[i * 3 + 1]
+          const oz = arr[i * 3 + 2]
+          const len = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1
+          const nx2 = ox / len, ny2 = oy / len, nz2 = oz / len
+          const wave = noise.noise3D(nx2 * 1.8 + time * 0.2, ny2 * 1.8 + time * 0.15, nz2 * 1.8) * 0.02
+            + noise.noise3D(nx2 * 3.5 + time * 0.35, ny2 * 3.5, nz2 * 3.5 - time * 0.25) * 0.01
+          const r = 1 + wave
+          arr[i * 3] = nx2 * r
+          arr[i * 3 + 1] = ny2 * r
+          arr[i * 3 + 2] = nz2 * r
+        }
+        posAttr.needsUpdate = true
+        exosomeGeoRef.current.computeVertexNormals()
+      }
+    }
   })
 
   return (
@@ -648,15 +748,15 @@ export default function BilayerMembrane() {
 
       <instancedMesh ref={centerTopHeadsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS, 7, 5]} />
-        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} />
+        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} transparent depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={centerBotHeadsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS * 0.9, 6, 4]} />
-        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} />
+        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} transparent depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={centerTailsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} transparent depthWrite={false} />
       </instancedMesh>
 
       <instancedMesh ref={rightTopHeadsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
@@ -671,6 +771,11 @@ export default function BilayerMembrane() {
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
         <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} transparent depthWrite={false} />
       </instancedMesh>
+
+      <mesh ref={exosomeRef} visible={false} frustumCulled={false}>
+        <sphereGeometry ref={exosomeGeoRef} args={[1, 48, 36]} />
+        <meshPhongMaterial color={COLORS.exosome} shininess={80} specular={COLORS.exosomeSpec} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} clippingPlanes={[exoClipPlane]} />
+      </mesh>
     </group>
   )
 }

@@ -128,6 +128,7 @@ export default function MembraneScene() {
           gl.setClearColor(0x000000, 0)
         gl.toneMapping = THREE.ACESFilmicToneMapping
         gl.toneMappingExposure = 1.0
+        gl.localClippingEnabled = true
         }}
       >
         <Scene />
