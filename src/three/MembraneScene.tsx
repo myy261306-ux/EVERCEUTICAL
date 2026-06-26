@@ -3,7 +3,13 @@
 import { Canvas, useThree } from "@react-three/fiber"
 import { useState, useEffect, Component, type ReactNode } from "react"
 import * as THREE from "three"
+import dynamic from "next/dynamic"
 import BilayerMembrane from "./ExosomeParticles"
+
+const PostProcessing = dynamic(
+  () => import("./PostProcessing").then((m) => m.PostProcessing),
+  { ssr: false }
+)
 
 class WebGLErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
@@ -53,16 +59,17 @@ function Scene() {
   return (
     <>
       <ResponsiveCamera />
-      <ambientLight intensity={0.45} color="#e0f0f0" />
-      <directionalLight position={[5, 8, 5]} intensity={2.2} color="#ffffff" />
-      <directionalLight position={[-4, 5, 3]} intensity={1.0} color="#f0e8d8" />
-      <pointLight position={[0, 3, 4]} intensity={1.0} color="#80e8d0" distance={18} decay={2} />
-      <pointLight position={[-6, 2, 2]} intensity={0.6} color="#60d0b8" distance={14} decay={2} />
-      <pointLight position={[6, 2, 2]} intensity={0.6} color="#60d0b8" distance={14} decay={2} />
-      <pointLight position={[0, 0, 3]} intensity={2.0} color="#40c8a8" distance={12} decay={2} />
-      <pointLight position={[0, 0, -2]} intensity={0.8} color="#30b898" distance={10} decay={2} />
+      <ambientLight intensity={0.4} color="#e8e0d0" />
+      <directionalLight position={[5, 8, 5]} intensity={2.0} color="#ffffff" />
+      <directionalLight position={[-4, 5, 3]} intensity={0.8} color="#f0e8d0" />
+      <pointLight position={[0, 3, 4]} intensity={1.0} color="#f0e0a0" distance={18} decay={2} />
+      <pointLight position={[-6, 2, 2]} intensity={0.5} color="#e8d8a0" distance={14} decay={2} />
+      <pointLight position={[6, 2, 2]} intensity={0.5} color="#e8d8a0" distance={14} decay={2} />
+      <pointLight position={[0, 0, 3]} intensity={1.2} color="#f0e0b0" distance={12} decay={2} />
+      <pointLight position={[0, 0, -2]} intensity={0.5} color="#d8c888" distance={10} decay={2} />
 
       <BilayerMembrane />
+      <PostProcessing isMobile={typeof window !== "undefined" && window.innerWidth < 768} />
     </>
   )
 }
