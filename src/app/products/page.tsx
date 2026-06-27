@@ -48,7 +48,7 @@ export default function ProductsPage() {
     : products.filter((p) => p.category === activeCategory)
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <main className="min-h-screen bg-transparent">
       <Navbar />
 
       {/* Hero */}
@@ -195,6 +195,6 @@ export default function ProductsPage() {
       </section>
 
       <Footer />
-    </div>
+    </main>
   )
 }

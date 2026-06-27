@@ -21,6 +21,22 @@ export default function Navbar() {
     setMobileOpen(false)
   }, [pathname])
 
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden"
+      document.body.style.position = "fixed"
+      document.body.style.width = "100%"
+      document.body.style.top = `-${window.scrollY}px`
+    } else {
+      const top = document.body.style.top
+      document.body.style.overflow = ""
+      document.body.style.position = ""
+      document.body.style.width = ""
+      document.body.style.top = ""
+      if (top) window.scrollTo(0, -parseInt(top, 10))
+    }
+  }, [mobileOpen])
+
   return (
     <motion.nav
       initial={{ y: -80, opacity: 0 }}

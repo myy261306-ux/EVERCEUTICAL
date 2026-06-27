@@ -62,19 +62,6 @@ html.lenis, html.lenis body {
   overflow: hidden;
 }
 
-/* Mobile: disable heavy effects for smooth scroll */
-@media (max-width: 768px) {
-  canvas {
-    will-change: auto;
-    transform: none;
-  }
-
-  .glass-card, .glass-surface, .glass-surface-strong {
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-  }
-}
-
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -474,23 +461,13 @@ section[id] {
   scroll-margin-top: 4.5rem;
 }
 
-@media (max-width: 640px) {
-  .glass-surface,
-  .glass-surface-strong,
-  .glass-card {
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-  }
-}
-
-/* Mobile touch improvements */
+/* Mobile touch improvements + performance */
 @media (max-width: 768px) {
   html, body {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
   }
 
-  /* Dynamic viewport height for mobile browsers */
   body {
     min-height: 100dvh;
   }
@@ -499,21 +476,32 @@ section[id] {
     scroll-margin-top: 4rem;
   }
 
-  /* Better tap targets on mobile */
   a, button {
     min-height: 44px;
     min-width: 44px;
   }
 
-  /* Reduce animation complexity on mobile */
   .glass-card:hover {
     transform: none;
   }
 
-  /* Ensure canvas fills mobile viewport properly */
   canvas {
+    will-change: auto;
+    transform: none;
     width: 100% !important;
     height: 100% !important;
+  }
+
+  .glass-card, .glass-surface, .glass-surface-strong {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+@media (max-width: 640px) {
+  .glass-card, .glass-surface, .glass-surface-strong {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 }
 
@@ -560,14 +548,6 @@ section {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* Mobile performance optimizations */
-@media (max-width: 768px) {
-  .glass-card, .glass-surface, .glass-surface-strong {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 }
 

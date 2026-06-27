@@ -151,11 +151,17 @@ function Exosome({ cfg, sectionBoundsRef }: { cfg: ExoConfig; sectionBoundsRef: 
     const raw = sH > 0 ? Math.max(0, Math.min(1, window.scrollY / sH)) : 0
 
     const bounds = sectionBoundsRef.current
-    const s5Start = bounds[5]?.start ?? 0.625
-    const s5End = bounds[5]?.end ?? 0.75
-    const sec5Prog = s5End > s5Start
-      ? Math.max(0, Math.min(1, (raw - s5Start) / (s5End - s5Start)))
-      : 0
+    const nSec = Math.max(1, bounds.length)
+    let sec5Prog: number
+    if (nSec >= 8) {
+      const s5Start = bounds[5]?.start ?? 0.625
+      const s5End = bounds[5]?.end ?? 0.75
+      sec5Prog = s5End > s5Start
+        ? Math.max(0, Math.min(1, (raw - s5Start) / (s5End - s5Start)))
+        : 0
+    } else {
+      sec5Prog = Math.max(0, Math.min(1, (raw - 0.65) / 0.20))
+    }
 
     const entryDur = 0.7
     const rawEntry = Math.max(0, Math.min(1, (sec5Prog - cfg.staggerOffset) / entryDur))

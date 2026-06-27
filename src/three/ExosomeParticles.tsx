@@ -202,7 +202,7 @@ function fillCenterCurlRibbon(
     const flatTy = flatFrame.tangent.y
     const flatTz = flatFrame.tangent.z
 
-    const angle = Math.PI + s * Math.PI * 2 * curlAmount
+    const angle = -s * Math.PI * 2 * curlAmount
     const curledPx = centerMidX + R * Math.sin(angle)
     const curledPy = centerMidY + R * Math.cos(angle) - R * 0.25
     const curledPz = centerMidZ
@@ -275,7 +275,7 @@ function getCurledHeadPosition(
   const t = tMin + (tMax - tMin) * s
   const flatFrame = getFrameAtT(frames, t)
 
-  const angle = Math.PI + s * Math.PI * 2 * curlAmount
+  const angle = -s * Math.PI * 2 * curlAmount
   const curledPx = centerMidX + R * Math.sin(angle)
   const curledPy = centerMidY + R * Math.cos(angle) - R * 0.25
   const curledPz = centerMidZ
@@ -560,10 +560,10 @@ export default function BilayerMembrane() {
     const bounds = sectionBoundsRef.current
 
     function secStart(idx: number): number {
-      return bounds[idx]?.start ?? (idx / 8)
+      return bounds[idx]?.start ?? (idx / Math.max(1, bounds.length))
     }
     function secEnd(idx: number): number {
-      return bounds[idx]?.end ?? ((idx + 1) / 8)
+      return bounds[idx]?.end ?? ((idx + 1) / Math.max(1, bounds.length))
     }
     function secProgress(idx: number): number {
       const s = secStart(idx), e = secEnd(idx)
@@ -575,13 +575,21 @@ export default function BilayerMembrane() {
       if (e <= s) return rawScroll >= s ? 1 : 0
       return Math.max(0, Math.min(1, (rawScroll - s) / (e - s)))
     }
+    function scrollStage(start: number, end: number): number {
+      if (end <= start) return rawScroll >= start ? 1 : 0
+      return Math.max(0, Math.min(1, (rawScroll - start) / (end - start)))
+    }
 
-    const curlAmount = multiProgress(0, 1)
-    const sec1Prog = secProgress(1)
-    const circleDrop = curlAmount > 0.95 ? Math.min(0.3, sec1Prog * 0.3) : 0
-    const flatUpOffset = curlAmount > 0.95 ? Math.min(4, sec1Prog * 4) : 0
+    const nSec = Math.max(1, bounds.length)
+    const curlAmount = nSec >= 8 ? multiProgress(0, 1) : scrollStage(0, 0.25)
+    const curlEnd = nSec >= 8 ? secEnd(1) : 0.25
+    const liftStart = Math.min(0.95, curlEnd + 0.03)
+    const liftProg = scrollStage(liftStart, Math.min(1, liftStart + 0.15))
+    const sLift = liftProg * liftProg * (3 - 2 * liftProg)
+    const circleDrop = sLift * 0.3
+    const flatUpOffset = sLift * 4
 
-    const exoConversion = multiProgress(2, 3)
+    const exoConversion = nSec >= 8 ? multiProgress(2, 3) : scrollStage(0.35, 0.55)
 
     if (groupRef.current) {
       const idleFloat = Math.sin(time * 0.25) * 0.06 + Math.sin(time * 0.4) * 0.025
@@ -595,16 +603,16 @@ export default function BilayerMembrane() {
 
     const bLeftFlat = getFrameAtT(parentFrames, CENTER_T_MIN).point
     const bRightFlat = getFrameAtT(parentFrames, CENTER_T_MAX).point
-    const bLeftCurledX = centerMidX + centerR * Math.sin(Math.PI)
-    const bLeftCurledY = centerMidY + centerR * Math.cos(Math.PI) - centerR * 0.25
-    const bRightAngle = Math.PI + Math.PI * 2 * curlAmount
+    const bLeftCurledX = centerMidX + centerR * Math.sin(0)
+    const bLeftCurledY = centerMidY + centerR * Math.cos(0) - centerR * 0.25
+    const bRightAngle = -Math.PI * 2 * curlAmount
     const bRightCurledX = centerMidX + centerR * Math.sin(bRightAngle)
     const bRightCurledY = centerMidY + centerR * Math.cos(bRightAngle) - centerR * 0.25
     const leftEdgeOffX = (bLeftCurledX - bLeftFlat.x) * curlAmount
-    const leftEdgeOffY = 0
+    const leftEdgeOffY = (bLeftCurledY - bLeftFlat.y) * curlAmount
     const leftEdgeOffZ = 0
     const rightEdgeOffX = (bRightCurledX - bRightFlat.x) * curlAmount
-    const rightEdgeOffY = 0
+    const rightEdgeOffY = (bRightCurledY - bRightFlat.y) * curlAmount
     const rightEdgeOffZ = 0
 
     if (leftRibbonRef.current) {
@@ -838,10 +846,15 @@ export default function BilayerMembrane() {
 
     const circleAlive = curlAmount >= 1
     const memFade = 1 - exoConversion
-    const postEntryDenom = secEnd(5) - secEnd(3)
-    const postEntry = postEntryDenom > 0.001
-      ? Math.max(0, Math.min(1, (rawScroll - secEnd(3)) / postEntryDenom))
-      : (rawScroll >= secEnd(3) ? 1 : 0)
+    const postEntryRaw = nSec >= 8
+      ? (() => {
+          const pd = secEnd(5) - secEnd(3)
+          return pd > 0.001
+            ? Math.max(0, Math.min(1, (rawScroll - secEnd(3)) / pd))
+            : (rawScroll >= secEnd(3) ? 1 : 0)
+        })()
+      : scrollStage(0.55, 0.85)
+    const postEntry = postEntryRaw
     const liveBoost = circleAlive ? 1 + postEntry * 0.4 : 1
 
     const cBreatheX = circleAlive ? Math.sin(time * 0.6) * 0.04 * liveBoost + Math.sin(time * 1.1) * 0.012 * postEntry : 0

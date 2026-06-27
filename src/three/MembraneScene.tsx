@@ -55,6 +55,20 @@ function ResponsiveCamera() {
   return null
 }
 
+function PostProcessingBridge() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  )
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
+  return <PostProcessing isMobile={isMobile} />
+}
+
 function Scene() {
   return (
     <>
@@ -72,7 +86,7 @@ function Scene() {
       <pointLight position={[0, -1, 4]} intensity={0.6} color="#60ddc0" distance={8} decay={2} />
 
       <BilayerMembrane />
-      <PostProcessing isMobile={typeof window !== "undefined" && window.innerWidth < 768} />
+      <PostProcessingBridge />
     </>
   )
 }
