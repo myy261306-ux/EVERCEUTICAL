@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect } from "react"
 import { useFrame } from "@react-three/fiber"
 import * as THREE from "three"
 import { SimplexNoise } from "./SimplexNoise"
+import InnerExosomes from "./InnerExosomes"
 
 const CURVE_SEGS = 220
 const MEMBRANE_WIDTH = 0.95
@@ -37,7 +38,39 @@ const COLORS = {
   coreRibbonSpec: new THREE.Color("#a89870"),
   exosome: new THREE.Color("#5ecfc0"),
   exosomeSpec: new THREE.Color("#b0fff0"),
+  chipLobe: new THREE.Color("#c87898"),
+  chipLobeSpec: new THREE.Color("#ffc0d8"),
+  chipBump: new THREE.Color("#a06078"),
+  chipBumpSpec: new THREE.Color("#dda0b8"),
+  chipStem: new THREE.Color("#9a8868"),
+  chipStemSpec: new THREE.Color("#c8b888"),
 }
+
+const CHIP_T_POSITIONS = [
+  0.06, 0.14, 0.22, 0.30,
+  0.39, 0.43, 0.47, 0.50, 0.53, 0.57, 0.61,
+  0.70, 0.78, 0.85, 0.92,
+]
+const CHIP_Z_OFFSETS = [
+  0.25, -0.18, 0.35, -0.30,
+  0.20, -0.35, 0.10, -0.20, 0.30, -0.15, 0.25,
+  -0.25, 0.30, -0.15, 0.20,
+]
+const CHIP_SCALES = [
+  1.15, 1.05, 1.2, 1.0,
+  1.15, 1.1, 1.2, 1.05, 1.15, 1.0, 1.15,
+  1.0, 1.15, 1.1, 1.15,
+]
+
+const INNER_CHIP_T_POSITIONS = [
+  0.41, 0.46, 0.50, 0.54, 0.59,
+]
+const INNER_CHIP_Z_OFFSETS = [
+  0.15, -0.25, 0.05, -0.15, 0.20,
+]
+const INNER_CHIP_SCALES = [
+  1.2, 1.3, 1.15, 1.25, 1.3,
+]
 
 const SAMPLE_N = 200
 
@@ -388,6 +421,9 @@ export default function BilayerMembrane() {
   const exosomeRef = useRef<THREE.Mesh>(null)
   const exosomeGeoRef = useRef<THREE.SphereGeometry>(null)
 
+  const chipGroupRefs = useRef<THREE.Group[]>([])
+  const innerChipGroupRefs = useRef<THREE.Group[]>([])
+
   const exoClipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(-1, 0, 0), -10), [])
 
   const groupScale = useRef(1)
@@ -407,6 +443,54 @@ export default function BilayerMembrane() {
 
   const noise = useMemo(() => new SimplexNoise(42), [])
 
+  const chipGeos = useMemo(() => {
+    function makePlate(radius: number, seed: number): THREE.BufferGeometry {
+      const geo = new THREE.IcosahedronGeometry(radius, 3)
+      const pos = geo.attributes.position
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
+        y *= 0.22
+        const len = Math.sqrt(x * x + y * y + z * z) || 1
+        const nx = x / len, ny = y / len, nz = z / len
+        const n1 = noise.noise3D(nx * 3 + seed, ny * 3 + seed + 10, nz * 3 + seed + 20)
+        const n2 = noise.noise3D(nx * 6 + seed + 50, ny * 6 + seed + 60, nz * 6 + seed + 70)
+        const disp = (n1 * 0.6 + n2 * 0.4) * 0.18 * radius
+        const r = len + disp
+        pos.setXYZ(i, nx * r, ny * r, nz * r)
+      }
+      geo.computeVertexNormals()
+      return geo
+    }
+    function makeBump(radius: number, seed: number): THREE.BufferGeometry {
+      const geo = new THREE.IcosahedronGeometry(radius, 2)
+      const pos = geo.attributes.position
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
+        y *= 0.35
+        const len = Math.sqrt(x * x + y * y + z * z) || 1
+        const nx = x / len, ny = y / len, nz = z / len
+        const n = noise.noise3D(nx * 4 + seed, ny * 4 + seed + 10, nz * 4 + seed + 20)
+        const r = len + n * 0.25 * radius
+        pos.setXYZ(i, nx * r, ny * r, nz * r)
+      }
+      geo.computeVertexNormals()
+      return geo
+    }
+    const lobes: THREE.BufferGeometry[] = []
+    const bumps: THREE.BufferGeometry[] = []
+    for (let i = 0; i < CHIP_T_POSITIONS.length; i++) {
+      lobes.push(makePlate(0.055, i * 7.3))
+      bumps.push(makeBump(0.020, i * 11.1))
+    }
+    const innerLobes: THREE.BufferGeometry[] = []
+    const innerBumps: THREE.BufferGeometry[] = []
+    for (let i = 0; i < INNER_CHIP_T_POSITIONS.length; i++) {
+      innerLobes.push(makePlate(0.058, i * 9.7 + 100))
+      innerBumps.push(makeBump(0.022, i * 13.3 + 200))
+    }
+    return { lobes, bumps, innerLobes, innerBumps }
+  }, [noise])
+
   const { straightSamples } = useMemo(() => {
     const straightPoints = buildStraightControlPoints()
     const straightCurve = new THREE.CatmullRomCurve3(straightPoints, false, "catmullrom", 0.5)
@@ -422,8 +506,8 @@ export default function BilayerMembrane() {
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
-  const scrollRef = useRef(0)
   const scrollTargetRef = useRef(0)
+  const sectionBoundsRef = useRef<{ start: number; end: number }[]>([])
 
   useEffect(() => {
     let ticking = false
@@ -441,6 +525,27 @@ export default function BilayerMembrane() {
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
+  useEffect(() => {
+    function measureSections() {
+      const main = document.querySelector("main")
+      if (!main) return
+      const sections = Array.from(main.querySelectorAll("section"))
+      const totalScroll = document.documentElement.scrollHeight - window.innerHeight
+      if (totalScroll <= 0) return
+      sectionBoundsRef.current = sections.map((el) => {
+        const rect = el.getBoundingClientRect()
+        const top = window.scrollY + rect.top
+        return {
+          start: Math.max(0, top / totalScroll),
+          end: Math.min(1, (top + rect.height) / totalScroll),
+        }
+      })
+    }
+    measureSections()
+    window.addEventListener("resize", measureSections)
+    return () => window.removeEventListener("resize", measureSections)
+  }, [])
+
   const { centerMidX, centerMidY, centerMidZ, centerR } = useMemo(() => {
     const mid = getFrameAtT(parentFrames, (CENTER_T_MIN + CENTER_T_MAX) / 2)
     const arcLen = computeArcLength(parentFrames, CENTER_T_MIN, CENTER_T_MAX)
@@ -451,21 +556,32 @@ export default function BilayerMembrane() {
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime()
 
-    scrollRef.current += (scrollTargetRef.current - scrollRef.current) * 0.03
+    const rawScroll = scrollTargetRef.current
+    const bounds = sectionBoundsRef.current
 
-    const rawScroll = scrollRef.current
-    let curlAmount = 0
-    let circleDrop = 0
-    if (rawScroll < 0.18) {
-      curlAmount = rawScroll / 0.18
-    } else {
-      curlAmount = 1
-      circleDrop = Math.min(0.3, (rawScroll - 0.18) / 0.10 * 0.3)
+    function secStart(idx: number): number {
+      return bounds[idx]?.start ?? (idx / 8)
+    }
+    function secEnd(idx: number): number {
+      return bounds[idx]?.end ?? ((idx + 1) / 8)
+    }
+    function secProgress(idx: number): number {
+      const s = secStart(idx), e = secEnd(idx)
+      if (e <= s) return rawScroll >= s ? 1 : 0
+      return Math.max(0, Math.min(1, (rawScroll - s) / (e - s)))
+    }
+    function multiProgress(fromIdx: number, toIdx: number): number {
+      const s = secStart(fromIdx), e = secEnd(toIdx)
+      if (e <= s) return rawScroll >= s ? 1 : 0
+      return Math.max(0, Math.min(1, (rawScroll - s) / (e - s)))
     }
 
-    const flatUpOffset = Math.max(0, Math.min(4, (rawScroll - 0.18) / 0.10 * 4))
+    const curlAmount = multiProgress(0, 1)
+    const sec1Prog = secProgress(1)
+    const circleDrop = curlAmount > 0.95 ? Math.min(0.3, sec1Prog * 0.3) : 0
+    const flatUpOffset = curlAmount > 0.95 ? Math.min(4, sec1Prog * 4) : 0
 
-    const exoConversion = Math.max(0, Math.min(1, (rawScroll - 0.28) / 0.10))
+    const exoConversion = multiProgress(2, 3)
 
     if (groupRef.current) {
       const idleFloat = Math.sin(time * 0.25) * 0.06 + Math.sin(time * 0.4) * 0.025
@@ -633,14 +749,106 @@ export default function BilayerMembrane() {
     if (rightBotHeadsRef.current) (rightBotHeadsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
     if (rightTailsRef.current) (rightTailsRef.current.material as THREE.MeshPhongMaterial).opacity = Math.max(0, 1 - flatUpOffset / 3)
 
+    for (let i = 0; i < CHIP_T_POSITIONS.length; i++) {
+      const grp = chipGroupRefs.current[i]
+      if (!grp) continue
+      const tVal = CHIP_T_POSITIONS[i]
+      const zOff = CHIP_Z_OFFSETS[i]
+      const sc = CHIP_SCALES[i]
+
+      let px: number, py: number, pz: number
+      let fnx: number, fny: number, fnz: number
+
+      const isCenter = tVal >= CENTER_T_MIN && tVal <= CENTER_T_MAX
+      if (isCenter && curlAmount >= 0.01) {
+        const s = (tVal - CENTER_T_MIN) / (CENTER_T_MAX - CENTER_T_MIN)
+        const curled = getCurledHeadPosition(s, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, parentFrames, CENTER_T_MIN, CENTER_T_MAX)
+        px = curled.px
+        py = curled.py - circleDrop
+        pz = curled.pz
+        fnx = curled.fnx
+        fny = curled.fny
+        fnz = curled.fnz
+      } else {
+        const { point, normal } = getFrameAtT(parentFrames, tVal)
+        px = point.x
+        py = point.y
+        pz = point.z
+        fnx = normal.x
+        fny = normal.y
+        fnz = normal.z
+      }
+
+      const lift = MEMBRANE_THICKNESS * 0.5 + 0.03
+      let chipX: number, chipY: number, chipZ: number
+      if (isCenter && curlAmount >= 0.01) {
+        const circleCenterY = centerMidY - centerR * 0.25
+        const dx = px - centerMidX
+        const dy = py - circleCenterY
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1
+        chipX = px + (dx / dist) * lift
+        chipY = py + (dy / dist) * lift
+        chipZ = pz
+      } else {
+        chipX = px + fnx * lift
+        chipY = py + fny * lift + flatUpOffset
+        chipZ = pz + fnz * lift
+      }
+
+      grp.position.set(chipX, chipY, chipZ)
+      if (isCenter) {
+        const fadeOut = curlAmount > 0.5 ? Math.max(0, 1 - (curlAmount - 0.5) / 0.35) : 1
+        grp.scale.setScalar(sc * fadeOut)
+        grp.visible = fadeOut > 0.01 && exoConversion < 0.5
+      } else {
+        grp.scale.setScalar(sc)
+        grp.visible = exoConversion < 0.5
+      }
+    }
+
+    for (let i = 0; i < INNER_CHIP_T_POSITIONS.length; i++) {
+      const grp = innerChipGroupRefs.current[i]
+      if (!grp) continue
+      const tVal = INNER_CHIP_T_POSITIONS[i]
+      const sc = INNER_CHIP_SCALES[i]
+      const isCenter = tVal >= CENTER_T_MIN && tVal <= CENTER_T_MAX
+      if (!isCenter || curlAmount < 0.01) { grp.visible = false; continue }
+
+      const s = (tVal - CENTER_T_MIN) / (CENTER_T_MAX - CENTER_T_MIN)
+      const curled = getCurledHeadPosition(s, curlAmount, centerMidX, centerMidY, centerMidZ, centerR, parentFrames, CENTER_T_MIN, CENTER_T_MAX)
+      const px = curled.px
+      const py = curled.py - circleDrop
+      const pz = curled.pz
+
+      const circleCenterY = centerMidY - centerR * 0.25
+      const dx = px - centerMidX
+      const dy = py - circleCenterY
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1
+      const lift = MEMBRANE_THICKNESS * 0.5 + 0.02
+
+      grp.position.set(
+        px - (dx / dist) * lift,
+        py - (dy / dist) * lift,
+        pz,
+      )
+      const growIn = curlAmount > 0.5 ? 1 + (curlAmount - 0.5) * 0.6 : curlAmount * 2
+      grp.scale.setScalar(sc * growIn)
+      grp.visible = curlAmount > 0.01 && exoConversion < 0.5
+    }
+
     const circleAlive = curlAmount >= 1
     const memFade = 1 - exoConversion
+    const postEntryDenom = secEnd(5) - secEnd(3)
+    const postEntry = postEntryDenom > 0.001
+      ? Math.max(0, Math.min(1, (rawScroll - secEnd(3)) / postEntryDenom))
+      : (rawScroll >= secEnd(3) ? 1 : 0)
+    const liveBoost = circleAlive ? 1 + postEntry * 0.4 : 1
 
-    const cBreatheX = circleAlive ? Math.sin(time * 0.6) * 0.04 : 0
-    const cBreatheY = circleAlive ? Math.cos(time * 0.45) * 0.03 : 0
-    const cPulse = circleAlive ? 1 + Math.sin(time * 0.8) * 0.02 : 1
-    const cRotateZ = circleAlive ? Math.sin(time * 0.35) * 0.03 : 0
-    const cRotateX = circleAlive ? Math.cos(time * 0.28) * 0.015 : 0
+    const cBreatheX = circleAlive ? Math.sin(time * 0.6) * 0.04 * liveBoost + Math.sin(time * 1.1) * 0.012 * postEntry : 0
+    const cBreatheY = circleAlive ? Math.cos(time * 0.45) * 0.03 * liveBoost + Math.cos(time * 0.9) * 0.01 * postEntry : 0
+    const cPulse = circleAlive ? 1 + Math.sin(time * 0.8) * 0.02 * liveBoost + Math.sin(time * 1.3) * 0.008 * postEntry : 1
+    const cRotateZ = circleAlive ? Math.sin(time * 0.35) * 0.03 + Math.sin(time * 0.7) * 0.012 * postEntry : 0
+    const cRotateX = circleAlive ? Math.cos(time * 0.28) * 0.015 + Math.cos(time * 0.55) * 0.008 * postEntry : 0
 
     if (centerRibbonRef.current) {
       centerRibbonRef.current.position.x = cBreatheX
@@ -689,9 +897,9 @@ export default function BilayerMembrane() {
           centerMidY - centerR * 0.25 - circleDrop + Math.cos(time * 0.35) * 0.025,
           centerMidZ + Math.sin(time * 0.3) * 0.02
         )
-        exosomeRef.current.rotation.y = time * 0.15
-        exosomeRef.current.rotation.x = Math.sin(time * 0.25) * 0.08
-        exosomeRef.current.rotation.z = Math.cos(time * 0.2) * 0.06
+        exosomeRef.current.rotation.y = time * 0.15 + postEntry * Math.sin(time * 0.3) * 0.05
+        exosomeRef.current.rotation.x = Math.sin(time * 0.25) * 0.08 + postEntry * Math.cos(time * 0.4) * 0.03
+        exosomeRef.current.rotation.z = Math.cos(time * 0.2) * 0.06 + postEntry * Math.sin(time * 0.35) * 0.02
         const mat = exosomeRef.current.material as THREE.MeshPhongMaterial
         mat.opacity = exoConversion * 0.28
         mat.transparent = true
@@ -776,6 +984,46 @@ export default function BilayerMembrane() {
         <sphereGeometry ref={exosomeGeoRef} args={[1, 48, 36]} />
         <meshPhongMaterial color={COLORS.exosome} shininess={80} specular={COLORS.exosomeSpec} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} clippingPlanes={[exoClipPlane]} />
       </mesh>
+
+      {CHIP_T_POSITIONS.map((_, i) => (
+        <group
+          key={`chip-${i}`}
+          ref={(el) => { if (el) chipGroupRefs.current[i] = el }}
+          visible={false}
+        >
+          <mesh position={[0, 0.05 * CHIP_SCALES[i], 0]}>
+            <cylinderGeometry args={[0.005, 0.009, 0.10 * CHIP_SCALES[i], 6, 1]} />
+            <meshPhongMaterial color={COLORS.chipStem} shininess={60} specular={COLORS.chipStemSpec} />
+          </mesh>
+          <mesh geometry={chipGeos.lobes[i]} position={[0, 0.11 * CHIP_SCALES[i], 0]}>
+            <meshPhongMaterial color={COLORS.chipLobe} shininess={90} specular={COLORS.chipLobeSpec} emissive={0x602038} emissiveIntensity={0.3} />
+          </mesh>
+          <mesh geometry={chipGeos.bumps[i]} position={[0, 0.135 * CHIP_SCALES[i], 0]}>
+            <meshPhongMaterial color={COLORS.chipBump} shininess={70} specular={COLORS.chipBumpSpec} emissive={0x401828} emissiveIntensity={0.2} />
+          </mesh>
+        </group>
+      ))}
+
+      {INNER_CHIP_T_POSITIONS.map((_, i) => (
+        <group
+          key={`ichip-${i}`}
+          ref={(el) => { if (el) innerChipGroupRefs.current[i] = el }}
+          visible={false}
+        >
+          <mesh position={[0, -0.05 * INNER_CHIP_SCALES[i], 0]}>
+            <cylinderGeometry args={[0.004, 0.008, 0.10 * INNER_CHIP_SCALES[i], 6, 1]} />
+            <meshPhongMaterial color={COLORS.chipStem} shininess={60} specular={COLORS.chipStemSpec} />
+          </mesh>
+          <mesh geometry={chipGeos.innerLobes[i]} position={[0, -0.11 * INNER_CHIP_SCALES[i], 0]}>
+            <meshPhongMaterial color={COLORS.chipLobe} shininess={90} specular={COLORS.chipLobeSpec} emissive={0x602038} emissiveIntensity={0.3} />
+          </mesh>
+          <mesh geometry={chipGeos.innerBumps[i]} position={[0, -0.135 * INNER_CHIP_SCALES[i], 0]}>
+            <meshPhongMaterial color={COLORS.chipBump} shininess={70} specular={COLORS.chipBumpSpec} emissive={0x401828} emissiveIntensity={0.2} />
+          </mesh>
+        </group>
+      ))}
+
+      <InnerExosomes />
     </group>
   )
 }

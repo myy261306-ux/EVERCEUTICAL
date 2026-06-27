@@ -6,8 +6,8 @@ export default function PostProcessingMobile() {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={0.25}
-        luminanceThreshold={0.5}
+        intensity={0.4}
+        luminanceThreshold={0.35}
         luminanceSmoothing={0.9}
         mipmapBlur
       />

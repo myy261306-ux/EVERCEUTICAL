@@ -51,3 +51,16 @@ serve-err.txt
 serve-out.txt
 serve.js
 src/three.zip
+
+# build output (HuggingFace deploy & static export)
+/_next/
+/_hf_deploy/
+/_not-found/
+/about-us/
+/blogs/
+/contact/
+/inspection-report/
+/products/
+/research-technology/
+/*.txt
+/index.txt

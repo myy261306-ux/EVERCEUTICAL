@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Protein Chips — Organic Structure Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a1628; overflow: hidden; font-family: Arial, sans-serif; }
+  canvas { display: block; }
+  #info {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    color: #aaccdd; font-size: 13px; text-align: center;
+    background: rgba(0,0,0,0.5); padding: 8px 18px; border-radius: 8px;
+    pointer-events: none; z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div id="info">Protein Chips — Organic Structure (drag to rotate, scroll to zoom)</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a1628);
+scene.fog = new THREE.FogExp2(0x0a1628, 0.008);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 6, 14);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.target.set(0, 0.8, 0);
+
+scene.add(new THREE.AmbientLight(0x8899aa, 0.7));
+const d1 = new THREE.DirectionalLight(0xffeedd, 2.0);
+d1.position.set(5, 10, 5);
+scene.add(d1);
+const d2 = new THREE.DirectionalLight(0xaaccff, 0.8);
+d2.position.set(-4, 6, -3);
+scene.add(d2);
+const pt1 = new THREE.PointLight(0x80ffe0, 0.5, 20);
+pt1.position.set(0, 4, 6);
+scene.add(pt1);
+
+/* ─── Simplex-like noise ─── */
+function hash(x, y, z) {
+  let h = x * 374761393 + y * 668265263 + z * 1274126177;
+  h = (h ^ (h >> 13)) * 1103515245;
+  return ((h ^ (h >> 16)) & 0x7fffffff) / 0x7fffffff;
+}
+
+function smoothNoise(x, y, z) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  const fx = x - ix, fy = y - iy, fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const sz = fz * fz * (3 - 2 * fz);
+  const n000 = hash(ix, iy, iz), n100 = hash(ix+1, iy, iz);
+  const n010 = hash(ix, iy+1, iz), n110 = hash(ix+1, iy+1, iz);
+  const n001 = hash(ix, iy, iz+1), n101 = hash(ix+1, iy, iz+1);
+  const n011 = hash(ix, iy+1, iz+1), n111 = hash(ix+1, iy+1, iz+1);
+  const nx00 = n000 + (n100 - n000) * sx;
+  const nx10 = n010 + (n110 - n010) * sx;
+  const nx01 = n001 + (n101 - n001) * sx;
+  const nx11 = n011 + (n111 - n011) * sx;
+  const nxy0 = nx00 + (nx10 - nx00) * sy;
+  const nxy1 = nx01 + (nx11 - nx01) * sy;
+  return nxy0 + (nxy1 - nxy0) * sz;
+}
+
+/* ─── Organic Bumpy Lobe ─── */
+function buildOrganicLobe(radius, bumpiness, seed) {
+  const geo = new THREE.IcosahedronGeometry(radius, 3);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const len = Math.sqrt(x*x + y*y + z*z) || 1;
+    const nx = x/len, ny = y/len, nz = z/len;
+    const n = smoothNoise(nx * 3 + seed, ny * 3 + seed + 10, nz * 3 + seed + 20);
+    const n2 = smoothNoise(nx * 6 + seed + 50, ny * 6 + seed + 60, nz * 6 + seed + 70);
+    const disp = (n * 0.6 + n2 * 0.4) * bumpiness * radius;
+    const r = len + disp;
+    pos.setXYZ(i, nx * r, ny * r, nz * r);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/* ─── Single Protein Chip ─── */
+function buildProteinChip(seed = 0) {
+  const g = new THREE.Group();
+
+  const chipLobeMat = new THREE.MeshPhongMaterial({
+    color: 0xc87898,
+    shininess: 90,
+    specular: 0xffc0d8,
+    emissive: 0x602038,
+    emissiveIntensity: 0.2,
+  });
+  const chipStemMat = new THREE.MeshPhongMaterial({
+    color: 0x9a8868,
+    shininess: 60,
+    specular: 0xc8b888,
+  });
+  const chipDarkMat = new THREE.MeshPhongMaterial({
+    color: 0xa06078,
+    shininess: 70,
+    specular: 0xdda0b8,
+    emissive: 0x401828,
+    emissiveIntensity: 0.15,
+  });
+
+  // Stem — thicker & taller
+  const stemGeo = new THREE.CylinderGeometry(0.08, 0.10, 0.45, 8, 1);
+  const stem = new THREE.Mesh(stemGeo, chipStemMat);
+  stem.position.y = 0.225;
+  g.add(stem);
+
+  // Left lobe — bigger organic bumpy
+  const lobeGeo1 = buildOrganicLobe(0.30, 0.25, seed);
+  const lobe1 = new THREE.Mesh(lobeGeo1, chipLobeMat);
+  lobe1.position.set(-0.18, 0.62, 0);
+  lobe1.scale.set(1, 1.2, 0.85);
+  g.add(lobe1);
+
+  // Right lobe — bigger organic bumpy
+  const lobeGeo2 = buildOrganicLobe(0.28, 0.22, seed + 7);
+  const lobe2 = new THREE.Mesh(lobeGeo2, chipLobeMat);
+  lobe2.position.set(0.18, 0.62, 0);
+  lobe2.scale.set(1, 1.2, 0.85);
+  g.add(lobe2);
+
+  // Top cluster bumps — bigger
+  const bumpGeo = buildOrganicLobe(0.12, 0.35, seed + 20);
+  const bumps = [
+    [-0.10, 0.88, 0.08],
+    [0.10, 0.86, -0.08],
+    [0.0, 0.92, 0.0],
+    [-0.22, 0.72, 0.10],
+    [0.22, 0.72, -0.10],
+    [0.0, 0.78, 0.14],
+    [0.0, 0.78, -0.14],
+  ];
+  for (const [bx, by, bz] of bumps) {
+    const bump = new THREE.Mesh(bumpGeo, chipDarkMat);
+    bump.position.set(bx, by, bz);
+    bump.rotation.set(seed + bx * 10, seed + bz * 10, 0);
+    g.add(bump);
+  }
+
+  return g;
+}
+
+/* ─── Membrane ─── */
+function buildMembrane() {
+  const g = new THREE.Group();
+
+  // Main strip — wide & thin
+  const stripGeo = new THREE.BoxGeometry(22, 0.08, 4.0);
+  const stripMat = new THREE.MeshPhongMaterial({ color: 0x8a7848, shininess: 50, specular: 0xb09868 });
+  const strip = new THREE.Mesh(stripGeo, stripMat);
+  g.add(strip);
+
+  // Lipid heads — double layer (top & bottom rows), tightly packed
+  const headGeo = new THREE.SphereGeometry(0.04, 8, 6);
+  const headMat = new THREE.MeshPhongMaterial({ color: 0xd4b878, shininess: 90, specular: 0xf0e0b0 });
+  const headMat2 = new THREE.MeshPhongMaterial({ color: 0xc8a868, shininess: 80, specular: 0xe8d0a0 });
+
+  const spacing = 0.12;
+  const rows = Math.floor(4.0 / spacing) + 1;
+  const cols = Math.floor(22 / spacing) + 1;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const z = -2.0 + r * spacing + (c % 2 === 0 ? 0 : spacing * 0.5);
+      const x = -11.0 + c * spacing;
+      const mat = (r + c) % 3 === 0 ? headMat2 : headMat;
+
+      // Top layer heads
+      const h1 = new THREE.Mesh(headGeo, mat);
+      h1.position.set(x, 0.045, z);
+      g.add(h1);
+
+      // Bottom layer heads
+      const h2 = new THREE.Mesh(headGeo, mat);
+      h2.position.set(x, -0.045, z);
+      g.add(h2);
+    }
+  }
+
+  return g;
+}
+
+/* ─── Build Full Scene ─── */
+const root = new THREE.Group();
+root.add(buildMembrane());
+
+const chipPositions = [
+  { x: -4.0, z: 0.3,  rot: 0,    seed: 1 },
+  { x: -2.5, z: -0.4, rot: 0.3,  seed: 2 },
+  { x: -1.0, z: 0.6,  rot: -0.2, seed: 3 },
+  { x: 0.5,  z: -0.2, rot: 0.15, seed: 4 },
+  { x: 2.0,  z: 0.5,  rot: -0.1, seed: 5 },
+  { x: 3.5,  z: -0.5, rot: 0.25, seed: 6 },
+  { x: 5.0,  z: 0.2,  rot: -0.3, seed: 7 },
+  { x: -3.2, z: 1.0,  rot: 0.4,  seed: 8 },
+  { x: -1.5, z: -0.9, rot: -0.35,seed: 9 },
+  { x: 0.0,  z: 1.2,  rot: 0.1,  seed: 10 },
+  { x: 1.8,  z: -1.1, rot: -0.2, seed: 11 },
+  { x: 3.8,  z: 0.9,  rot: 0.3,  seed: 12 },
+  { x: -3.8, z: -1.0, rot: -0.4, seed: 13 },
+  { x: 5.5,  z: -0.7, rot: 0.2,  seed: 14 },
+  { x: -5.0, z: 0.5,  rot: 0.15, seed: 15 },
+];
+
+for (const cfg of chipPositions) {
+  const chip = buildProteinChip(cfg.seed);
+  chip.position.set(cfg.x, 0.04, cfg.z);
+  chip.rotation.y = cfg.rot;
+  root.add(chip);
+}
+
+scene.add(root);
+
+/* ─── Animation ─── */
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  let ci = 0;
+  root.children.forEach(child => {
+    if (child.isGroup && child !== root.children[0]) {
+      child.position.y = 0.04 + Math.sin(t * 0.4 + ci * 1.1) * 0.005;
+      child.rotation.y += 0.0008;
+      ci++;
+    }
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

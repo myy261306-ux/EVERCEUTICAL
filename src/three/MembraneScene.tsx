@@ -59,7 +59,7 @@ function Scene() {
   return (
     <>
       <ResponsiveCamera />
-      <ambientLight intensity={0.45} color="#f8f4f0" />
+      <ambientLight intensity={0.55} color="#f0f8f6" />
       <directionalLight position={[5, 8, 5]} intensity={1.5} color="#f8f4f0" />
       <directionalLight position={[-4, 5, 3]} intensity={0.8} color="#f8f4f0" />
       <directionalLight position={[0, 10, 2]} intensity={1.8} color="#ffe066" />
@@ -68,6 +68,8 @@ function Scene() {
       <pointLight position={[6, 2, 2]} intensity={0.5} color="#f8f4f0" distance={14} decay={2} />
       <pointLight position={[0, 0, 3]} intensity={1.2} color="#f8f4f0" distance={12} decay={2} />
       <pointLight position={[0, 0, -2]} intensity={0.4} color="#f8f4f0" distance={10} decay={2} />
+      <pointLight position={[0, 1, 5]} intensity={0.8} color="#80ffe0" distance={10} decay={2} />
+      <pointLight position={[0, -1, 4]} intensity={0.6} color="#60ddc0" distance={8} decay={2} />
 
       <BilayerMembrane />
       <PostProcessing isMobile={typeof window !== "undefined" && window.innerWidth < 768} />

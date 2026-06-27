@@ -6,8 +6,8 @@ export default function PostProcessingDesktop() {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={0.5}
-        luminanceThreshold={0.35}
+        intensity={0.65}
+        luminanceThreshold={0.28}
         luminanceSmoothing={0.9}
         mipmapBlur
       />
