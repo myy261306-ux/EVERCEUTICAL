@@ -36,8 +36,10 @@ const COLORS = {
   tails: new THREE.Color("#6a5c38"),
   coreRibbon: new THREE.Color("#8a7850"),
   coreRibbonSpec: new THREE.Color("#a89870"),
-  exosome: new THREE.Color("#5ecfc0"),
-  exosomeSpec: new THREE.Color("#b0fff0"),
+  exosome: new THREE.Color("#5ec4d8"),
+  exosomeSpec: new THREE.Color("#c0f0ff"),
+  exosomeEmissive: new THREE.Color("#2090a8"),
+  exosomeEdge: new THREE.Color("#a0e8ff"),
   chipLobe: new THREE.Color("#c87898"),
   chipLobeSpec: new THREE.Color("#ffc0d8"),
   chipBump: new THREE.Color("#a06078"),
@@ -424,7 +426,8 @@ export default function BilayerMembrane() {
   const chipGroupRefs = useRef<THREE.Group[]>([])
   const innerChipGroupRefs = useRef<THREE.Group[]>([])
 
-  const exoClipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(-1, 0, 0), -10), [])
+  const exoEdgeRef = useRef<THREE.Mesh>(null)
+  const memClipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0.707, -0.707, 0).normalize(), 10), [])
 
   const groupScale = useRef(1)
   useEffect(() => {
@@ -589,7 +592,7 @@ export default function BilayerMembrane() {
     const circleDrop = sLift * 0.3
     const flatUpOffset = sLift * 4
 
-    const exoConversion = nSec >= 8 ? multiProgress(2, 3) : scrollStage(0.35, 0.55)
+    const exoConversion = nSec >= 8 ? multiProgress(3, 4) : scrollStage(0.50, 0.70)
 
     if (groupRef.current) {
       const idleFloat = Math.sin(time * 0.25) * 0.06 + Math.sin(time * 0.4) * 0.025
@@ -845,15 +848,20 @@ export default function BilayerMembrane() {
     }
 
     const circleAlive = curlAmount >= 1
-    const memFade = 1 - exoConversion
+    const smoothExoFade = exoConversion * exoConversion * (3 - 2 * exoConversion)
+    const memFade = 1 - smoothExoFade
+
+    const memClipExtent = centerR * 3
+    const memClipSweep = smoothExoFade
+    memClipPlane.constant = memClipExtent - memClipSweep * memClipExtent * 2
     const postEntryRaw = nSec >= 8
       ? (() => {
-          const pd = secEnd(5) - secEnd(3)
+          const pd = secEnd(5) - secEnd(4)
           return pd > 0.001
-            ? Math.max(0, Math.min(1, (rawScroll - secEnd(3)) / pd))
-            : (rawScroll >= secEnd(3) ? 1 : 0)
+            ? Math.max(0, Math.min(1, (rawScroll - secEnd(4)) / pd))
+            : (rawScroll >= secEnd(4) ? 1 : 0)
         })()
-      : scrollStage(0.55, 0.85)
+      : scrollStage(0.70, 0.90)
     const postEntry = postEntryRaw
     const liveBoost = circleAlive ? 1 + postEntry * 0.4 : 1
 
@@ -903,7 +911,8 @@ export default function BilayerMembrane() {
       const shouldShow = exoConversion > 0.001
       exosomeRef.current.visible = shouldShow
       if (shouldShow) {
-        const exoGrow = centerR * (1.35 + exoConversion * 0.25)
+        const smoothExo = exoConversion * exoConversion * (3 - 2 * exoConversion)
+        const exoGrow = centerR * (1.50 + smoothExo * 0.40)
         exosomeRef.current.scale.setScalar(exoGrow)
         exosomeRef.current.position.set(
           centerMidX + Math.sin(time * 0.4) * 0.03,
@@ -914,12 +923,8 @@ export default function BilayerMembrane() {
         exosomeRef.current.rotation.x = Math.sin(time * 0.25) * 0.08 + postEntry * Math.cos(time * 0.4) * 0.03
         exosomeRef.current.rotation.z = Math.cos(time * 0.2) * 0.06 + postEntry * Math.sin(time * 0.35) * 0.02
         const mat = exosomeRef.current.material as THREE.MeshPhongMaterial
-        mat.opacity = exoConversion * 0.28
+        mat.opacity = smoothExo * 0.32
         mat.transparent = true
-
-        const wipeExtent = exoGrow * 1.5
-        const smoothWipe = exoConversion * exoConversion * (3 - 2 * exoConversion)
-        exoClipPlane.constant = (centerMidX - wipeExtent) + smoothWipe * wipeExtent * 2
 
         const posAttr = exosomeGeoRef.current.attributes.position as THREE.BufferAttribute
         const arr = posAttr.array as Float32Array
@@ -929,8 +934,8 @@ export default function BilayerMembrane() {
           const oz = arr[i * 3 + 2]
           const len = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1
           const nx2 = ox / len, ny2 = oy / len, nz2 = oz / len
-          const wave = noise.noise3D(nx2 * 1.8 + time * 0.2, ny2 * 1.8 + time * 0.15, nz2 * 1.8) * 0.02
-            + noise.noise3D(nx2 * 3.5 + time * 0.35, ny2 * 3.5, nz2 * 3.5 - time * 0.25) * 0.01
+          const wave = noise.noise3D(nx2 * 1.5 + time * 0.18, ny2 * 1.5 + time * 0.12, nz2 * 1.5) * 0.035
+            + noise.noise3D(nx2 * 3.2 + time * 0.3, ny2 * 3.2, nz2 * 3.2 - time * 0.2) * 0.015
           const r = 1 + wave
           arr[i * 3] = nx2 * r
           arr[i * 3 + 1] = ny2 * r
@@ -938,6 +943,18 @@ export default function BilayerMembrane() {
         }
         posAttr.needsUpdate = true
         exosomeGeoRef.current.computeVertexNormals()
+
+        if (exoEdgeRef.current) {
+          exoEdgeRef.current.visible = true
+          exoEdgeRef.current.scale.setScalar(exoGrow * 1.02)
+          exoEdgeRef.current.position.copy(exosomeRef.current.position)
+          exoEdgeRef.current.rotation.copy(exosomeRef.current.rotation)
+          const edgeMat = exoEdgeRef.current.material as THREE.MeshPhongMaterial
+          edgeMat.opacity = smoothExo * 0.55
+          edgeMat.transparent = true
+        }
+      } else {
+        if (exoEdgeRef.current) exoEdgeRef.current.visible = false
       }
     }
   })
@@ -948,7 +965,7 @@ export default function BilayerMembrane() {
         <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh ref={centerRibbonRef} geometry={centerRibbonGeo} frustumCulled={false}>
-        <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
+        <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} clippingPlanes={[memClipPlane]} />
       </mesh>
       <mesh ref={rightRibbonRef} geometry={rightRibbonGeo} frustumCulled={false}>
         <meshPhongMaterial color={COLORS.coreRibbon} shininess={60} specular={COLORS.coreRibbonSpec} transparent opacity={0.45} side={THREE.DoubleSide} depthWrite={false} />
@@ -969,15 +986,15 @@ export default function BilayerMembrane() {
 
       <instancedMesh ref={centerTopHeadsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS, 7, 5]} />
-        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} transparent depthWrite={false} />
+        <meshPhongMaterial color={COLORS.headTop} shininess={150} specular={COLORS.headTopSpec} transparent depthWrite={false} clippingPlanes={[memClipPlane]} />
       </instancedMesh>
       <instancedMesh ref={centerBotHeadsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <sphereGeometry args={[HEAD_RADIUS * 0.9, 6, 4]} />
-        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} transparent depthWrite={false} />
+        <meshPhongMaterial color={COLORS.headBottom} shininess={100} specular={COLORS.headBottomSpec} transparent depthWrite={false} clippingPlanes={[memClipPlane]} />
       </instancedMesh>
       <instancedMesh ref={centerTailsRef} args={[undefined, undefined, CENTER_COLS * MAIN_ROWS]} frustumCulled={false}>
         <cylinderGeometry args={[TAIL_RADIUS, TAIL_RADIUS, TAIL_GAP, 4, 1]} />
-        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} transparent depthWrite={false} />
+        <meshPhongMaterial color={COLORS.tails} shininess={50} specular={new THREE.Color("#c8b860")} transparent depthWrite={false} clippingPlanes={[memClipPlane]} />
       </instancedMesh>
 
       <instancedMesh ref={rightTopHeadsRef} args={[undefined, undefined, RIGHT_COLS * MAIN_ROWS]} frustumCulled={false}>
@@ -995,7 +1012,11 @@ export default function BilayerMembrane() {
 
       <mesh ref={exosomeRef} visible={false} frustumCulled={false}>
         <sphereGeometry ref={exosomeGeoRef} args={[1, 48, 36]} />
-        <meshPhongMaterial color={COLORS.exosome} shininess={80} specular={COLORS.exosomeSpec} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} clippingPlanes={[exoClipPlane]} />
+        <meshPhongMaterial color={COLORS.exosome} shininess={200} specular={new THREE.Color("#ffffff")} emissive={COLORS.exosomeEmissive} emissiveIntensity={0.15} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={exoEdgeRef} visible={false} frustumCulled={false}>
+        <sphereGeometry args={[1, 48, 36]} />
+        <meshPhongMaterial color={COLORS.exosomeEdge} shininess={300} specular={new THREE.Color("#ffffff")} emissive={COLORS.exosomeEdge} emissiveIntensity={0.6} transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
       </mesh>
 
       {CHIP_T_POSITIONS.map((_, i) => (
@@ -1036,7 +1057,7 @@ export default function BilayerMembrane() {
         </group>
       ))}
 
-      <InnerExosomes />
+      <InnerExosomes centerY={centerMidY - centerR * 0.25} outerR={centerR * 1.90} />
     </group>
   )
 }
